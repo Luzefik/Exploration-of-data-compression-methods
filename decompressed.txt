@@ -1,0 +1,15 @@
+# Generate a large repetitive text file for LZ77 testing
+output_file = "lz77_test.txt"
+
+# Define a repetitive pattern
+pattern = "Hello, world! This is a simple test file to verify LZ77 compression.\n"
+
+# Number of repetitions
+repetitions = 10000  # Adjust this number to control the file size
+
+# Write the repetitive pattern to the file
+with open(output_file, "w", encoding="utf-8") as f:
+    for _ in range(repetitions):
+        f.write(pattern)
+
+print(f"Generated {output_file} with {repetitions} repetitions of the pattern.")
