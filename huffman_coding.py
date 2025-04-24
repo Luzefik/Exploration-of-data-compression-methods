@@ -2,6 +2,7 @@
 Huffman coding algorithm -
 data compression algorithm
 """
+from collections import defaultdict
 
 class Node:
     """
@@ -45,12 +46,9 @@ class HuffmanTree:
         :param data: data to count symbol frequency for
         :return: dict, dictionary with symbol frequency
         """
-        char_frequency_dict = {}
+        char_frequency_dict = defaultdict(int)
         for el in data:
-            if el in char_frequency_dict:
-                char_frequency_dict[el] += 1
-            else:
-                char_frequency_dict.setdefault(el, 1)
+            char_frequency_dict[el] += 1
 
         return char_frequency_dict
 
