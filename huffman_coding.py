@@ -2,7 +2,11 @@
 Huffman coding algorithm -
 data compression algorithm
 """
+import json
 from collections import defaultdict
+from bitarray import bitarray
+
+
 
 class Node:
     """
@@ -94,3 +98,79 @@ class HuffmanTree:
             nodes.append(new_merged_node)
 
         self.root = nodes[0]
+
+    def encoding(self, input_f: str, output_f="compressed.bin",\
+        output_dict_f = 'compressed_dict.json'):
+        """
+        Function encodes data from given file using Huffman algorithm.
+
+        :param input_f: str, file given by user
+        :param output_f: str, file to write encoded data to
+        :param output_dict_f: str, file to write encoded data dictionary to
+        """
+        # reading normal and binary files
+        try:
+            with open(input_f, encoding="utf-8") as f:
+                data = f.read()
+        except UnicodeDecodeError:
+            with open(input_f, 'rb') as f:
+                data = f.read()
+
+        if not self.root:
+            self.char_frequency_dict = self.char_frequency(data)
+            self.nodes = []
+            for val, val_freq in self.char_frequency_dict.items():
+                self.nodes.append(Node(val, val_freq))
+            self.tree()
+            self.codes_generation()
+
+        res = bitarray()
+        for char in data:
+            res.extend(self.res_codes[char])
+
+        # writing data from dictionary
+        with open(output_dict_f, 'w', encoding='utf-8') as f:
+            final_codes = defaultdict(str)
+            for k, v in self.res_codes.items():
+                final_codes[v] = k
+            json.dump(final_codes, f)
+
+        # writing encoded data
+        with open(output_f, 'wb') as f:
+            res.tofile(f)
+
+    def decoding(self, input_f: str, input_dict_f: str, output_f="decompressed.txt"):
+        """
+        Function decodes data from given files using Huffman algorithm.
+
+        :param input_f: str, file given by user.
+        :param input_dict_f: str, file with dictionary given by user.
+        :param output_f: str, file to write decoded data to
+        """
+        with open(input_f, 'rb') as f:
+            data = bitarray()
+            data.fromfile(f)
+
+        with open(input_dict_f, 'r', encoding='utf-8') as f:
+            res_dict = json.load(f)
+
+        data = list(data)
+        decoded_data = []
+        curr_code = ''
+
+        while data:
+            curr_el = data.pop(0)
+            curr_code += str(curr_el)
+            if curr_code in res_dict:
+                decoded_data.append(res_dict[curr_code])
+                curr_code = ''
+
+        with open(output_f, 'w', encoding='utf-8') as f:
+            f.write(''.join(str(el) for el in decoded_data))
+
+
+
+# example for txt file(1000 words)
+# t = HuffmanTree()
+# t.encoding('example.txt')
+# t.decoding('compressed.bin', 'compressed_dict.json')
