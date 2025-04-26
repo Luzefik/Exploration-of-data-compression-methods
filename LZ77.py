@@ -2,7 +2,7 @@
 This class implements the LZ77 compression algorithm.
 It compresses data by finding repeated sequences and encoding them.
 """
-
+import mmap
 from bitarray import bitarray
 
 
@@ -63,13 +63,9 @@ class LZ77:
         """
         Compresses the input file using the LZ77 algorithm.
         """
-        try:
-            with open(input_file, "rb") as fd:
-                data = fd.read()
-        except UnicodeDecodeError:
-            # If it fails as text, read as binary
-            with open(input_file, "rb") as fd:
-                data = fd.read()
+        with open(input_file, 'r+b') as f:
+            buf = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
+            data = buf[:]
 
         output_buffer = bitarray(endian="big")
         i = 0
@@ -189,5 +185,4 @@ class LZ77:
 
 if __name__ == "__main__":
     lz77 = LZ77()
-    lz77.compress("test.txt", "compressed.bin", verbose=True)
-    lz77.decompress("compressed.bin", "decompressed.txt")
+    lz77.compress("pidmohylnyy-valerian-petrovych-misto76.txt", "pidmohylnyy-valerian-petrovych-misto76.bin", verbose=True)
