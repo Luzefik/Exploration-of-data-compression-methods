@@ -1,6 +1,12 @@
 """LZ78"""
 
+import struct
+
 def lz78_compress(data):
+    """
+    Compresses a string using the LZ78 algorithm.
+    Returns a list of (index, char) pairs.
+    """
     dictionary = {}
     result = []
     current = ''
@@ -24,6 +30,10 @@ def lz78_compress(data):
     return result
 
 def lz78_decompress(pairs):
+    """
+    Decompresses a list of (index, char) pairs using the LZ78 algorithm.
+    Returns the reconstructed string.
+    """
     dictionary = {0: ''}
     result = []
     dict_size = 1
@@ -36,11 +46,49 @@ def lz78_decompress(pairs):
 
     return ''.join(result)
 
-if __name__ == '__main__':
-    text = 'abacabacabadaca'
-    compressed = lz78_compress(text)
-    decompressed = lz78_decompress(compressed)
+def compress_file(input_txt, output_bin):
+    """
+    Reads a UTF-8 text file, compresses its contents using LZ78,
+    and writes the compressed data to a binary file.
+    """
+    with open(input_txt, encoding='utf-8') as f:
+        data = f.read()
 
-    print(f'Original text: {text}')
-    print(f'Compressed: {compressed}')
-    print(f'Decompressed: {decompressed}')
+    pairs = lz78_compress(data)
+
+    with open(output_bin, 'wb') as f:
+        for idx, ch in pairs:
+            f.write(struct.pack('>I', idx))
+            b = ch.encode('utf-8')
+            f.write(struct.pack('B', len(b)))
+            f.write(b)
+
+def decompress_file(input_bin, output_txt):
+    """
+    Reads a binary LZ78 stream, decompresses to a string,
+    and writes it out as UTF-8 text.
+    """
+    pairs = []
+
+    with open(input_bin, 'rb') as f:
+        data = f.read()
+        pos = 0
+
+        while pos < len(data):
+            idx = struct.unpack_from('>I', data, pos)[0]
+            pos += 4
+            length = struct.unpack_from('B', data, pos)[0]
+            pos += 1
+            b = data[pos:pos + length]
+            pos += length
+            ch = b.decode('utf-8')
+            pairs.append((idx, ch))
+
+    decompressed = lz78_decompress(pairs)
+
+    with open(output_txt, 'w', encoding='utf-8') as f:
+        f.write(decompressed)
+
+if __name__ == '__main__':
+    compress_file('input.txt', 'compressed.bin')
+    decompress_file('compressed.bin', 'output.txt')
