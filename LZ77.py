@@ -2,187 +2,139 @@
 This class implements the LZ77 compression algorithm.
 It compresses data by finding repeated sequences and encoding them.
 """
+
 import mmap
 from bitarray import bitarray
+from pathlib import Path
 
 
 class LZ77:
-    """
-    LZ77 compression algorithm implementation.
-    This class provides methods to compress and decompress data using the LZ77 algorithm.
-    """
+    MAX_CHAIN = 64
 
-    MAX_WINDOW_SIZE = 400
+    def __init__(self, window_size=4096, lookahead_buffer_size=18, hash_bits=16):
+        self.window_size = window_size
+        self.lookahead_buffer_size = lookahead_buffer_size
+        self.HSIZE = 1 << hash_bits
+        self.head = [-1] * self.HSIZE
+        self.prev = [-1] * (window_size + 1)
 
-    def __init__(self, window_size=None):
-        if window_size is None:
-            window_size = self.MAX_WINDOW_SIZE
-        self.window_size = min(window_size, self.MAX_WINDOW_SIZE)
-        self.lookahead_buffer_size = 15
+    def compute_hash(self, data: memoryview, pos: int) -> int:
+        h = 0
+        end = min(len(data), pos + 3)
+        for i in range(pos, end):
+            h = ((h << 5) ^ data[i]) & (self.HSIZE - 1)
+        return h
 
-    def find_match(self, data: bytes, current_position: int) -> tuple[int, int] | None:
-        """
-        Find the longest match in the search window.
-        """
-        end_of_buffer = min(current_position + self.lookahead_buffer_size, len(data))
+    def roll_hash(self, old_hash: int, new_byte: int) -> int:
+        return ((old_hash << 5) ^ new_byte) & (self.HSIZE - 1)
 
-        # If we're at the end of the data, there's no match
-        if current_position >= len(data):
-            return None
+    def insert_position(self, data: memoryview, pos: int, cur_hash: int):
+        idx = pos & self.window_size
+        self.prev[idx] = self.head[cur_hash]
+        self.head[cur_hash] = pos
 
-        best_match_distance = 0
-        best_match_length = 0
+    def find_match(
+        self, data: memoryview, pos: int, cur_hash: int
+    ) -> tuple[int, int] | None:
+        best_len = 0
+        best_dist = 0
+        limit = max(0, pos - self.window_size)
+        count = 0
+        candidate = self.head[cur_hash]
+        max_look = min(self.lookahead_buffer_size, len(data) - pos)
 
-        # Search window starts
-        search_start = max(0, current_position - self.window_size)
+        while candidate >= limit and count < self.MAX_CHAIN:
+            length = best_len
+            for L in range(max_look, best_len, -1):
+                if data[candidate : candidate + L] == data[pos : pos + L]:
+                    length = L
+                    break
+            if length > best_len:
+                best_len = length
+                best_dist = pos - candidate
+                if best_len == max_look:
+                    break
+            candidate = self.prev[candidate & self.window_size]
+            count += 1
 
-        # For each possible starting position in the window
-        for i in range(search_start, current_position):
-            # Current match length
-            match_length = 0
-            # How far can we match from this position?
-            while (
-                current_position + match_length < len(data)
-                and match_length < self.lookahead_buffer_size
-                and data[i + match_length % (current_position - i)]
-                == data[current_position + match_length]
-            ):
-                match_length += 1
-
-            if match_length > best_match_length:
-                best_match_length = match_length
-                best_match_distance = current_position - i
-
-        if best_match_length >= 3:  # Only encode matches of length 3 or more
-            return (best_match_distance, best_match_length)
+        if best_len >= 3:
+            return best_dist, best_len
         return None
 
-    def compress(
-        self, input_file: str, output_file: str = None, verbose: bool = False
-    ) -> bitarray:
-        """
-        Compresses the input file using the LZ77 algorithm.
-        """
-        with open(input_file, 'r+b') as f:
-            buf = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            data = buf[:]
+    def compress(self, infile: str, outfile: str = None) -> bitarray:
+        with open(infile, "rb") as f:
+            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+            data = memoryview(mm)
+            n = len(data)
 
-        output_buffer = bitarray(endian="big")
+            output = bitarray(endian="big")
+            pos = 0
+            cur_hash = self.compute_hash(data, pos)
+
+            while pos < n:
+                self.insert_position(data, pos, cur_hash)
+                match = self.find_match(data, pos, cur_hash)
+                if match:
+                    dist, length = match
+                    output.append(True)
+                    output.extend(bitarray(f"{dist:012b}"))
+                    output.extend(bitarray(f"{length:04b}"))
+                    for i in range(length):
+                        if pos + i + 3 < n:
+                            cur_hash = self.roll_hash(cur_hash, data[pos + i + 3])
+                        self.insert_position(data, pos + i + 1, cur_hash)
+                    pos += length
+                else:
+                    output.append(False)
+                    output.extend(bitarray(f"{data[pos]:08b}"))
+                    if pos + 3 < n:
+                        cur_hash = self.roll_hash(cur_hash, data[pos + 3])
+                    pos += 1
+
+            while len(output) % 8:
+                output.append(False)
+
+            if outfile:
+                with open(outfile, "wb") as out:
+                    output.tofile(out)
+            return output
+
+    def decompress(self, infile: str, outfile: str = None) -> bytearray:
+        with open(infile, "rb") as f:
+            bits = bitarray(endian="big")
+            bits.fromfile(f)
+
+        out = bytearray()
         i = 0
-
-        if verbose:
-            print(f"Compressing {input_file} ({len(data)} bytes)")
-
-        while i < len(data):
-            max_match = self.find_match(data, i)
-
-            if max_match:
-                (distance, length) = max_match
-                if verbose:
-                    print(
-                        f"Match at position {i}: distance={distance}, length={length}"
-                    )
-
-                output_buffer.append(True)  # Flag for match
-
-                # Store distance (12 bits) and length (4 bits)
-                distance_bits = bitarray(endian="big")
-                distance_bits.frombytes(bytes([distance >> 4]))
-                output_buffer.extend(distance_bits[-8:])  # Take last 8 bits
-
-                mixed_byte = ((distance & 0xF) << 4) | (length & 0xF)
-                mixed_bits = bitarray(endian="big")
-                mixed_bits.frombytes(bytes([mixed_byte]))
-                output_buffer.extend(mixed_bits[-8:])  # Take last 8 bits
-
-                i += length
-            else:
-                if verbose:
-                    print(f"Literal at position {i}: {data[i]}")
-
-                output_buffer.append(False)  # Flag for literal
-                char_bits = bitarray(endian="big")
-                char_bits.frombytes(bytes([data[i]]))
-                output_buffer.extend(char_bits[-8:])  # Take last 8 bits
-
-                i += 1
-
-        # Ensure byte-alignment by padding
-        while len(output_buffer) % 8 != 0:
-            output_buffer.append(False)
-
-        if output_file:
-            with open(output_file, "wb") as fd:
-                output_buffer.tofile(fd)
-
-            if verbose:
-                compression_ratio = (len(data) / (len(output_buffer) / 8)) * 100
-                print(f"Compressed size: {len(output_buffer) / 8} bytes")
-                print(f"Compression ratio: {compression_ratio:.2f}%")
-
-        return output_buffer
-
-    def decompress(self, input_file: str, output_file: str = None) -> bytearray | None:
-        """
-        Decompresses the input file using the LZ77 algorithm.
-        """
-        with open(input_file, "rb") as fd:
-            data = bitarray(endian="big")
-            data.fromfile(fd)
-
-        output_buffer = bytearray()
-        i = 0
-
-        while i < len(data):
-            if i + 8 >= len(data):  # Check if we have at least 9 bits left
-                break
-
-            flag = data[i]
+        n = len(bits)
+        while i + 1 <= n:
+            flag = bits[i]
             i += 1
-
-            if not flag:  # Literal
-                if i + 8 > len(data):
-                    break
-
-                # Extract 8 bits for the character
-                char_bits = data[i : i + 8]
+            if not flag:
+                byte = int(bits[i : i + 8].to01(), 2)
                 i += 8
-
-                # Convert to byte and append to output
-                char_byte = int(char_bits.to01(), 2)
-                output_buffer.append(char_byte)
-            else:  # Match
-                if i + 16 > len(data):
-                    break
-
-                # Extract distance (12 bits) and length (4 bits)
-                dist_high_bits = data[i : i + 8]
-                i += 8
-                mixed_bits = data[i : i + 8]
-                i += 8
-
-                dist_high = int(dist_high_bits.to01(), 2)
-                mixed_byte = int(mixed_bits.to01(), 2)
-
-                distance = (dist_high << 4) | (mixed_byte >> 4)
-                length = mixed_byte & 0xF
-
-                # Copy from the already decompressed data
-                for j in range(length):
-                    if len(output_buffer) - distance >= 0:
-                        output_buffer.append(
-                            output_buffer[len(output_buffer) - distance]
-                        )
-                    else:
-                        # Handle case where distance points before start of buffer
-                        output_buffer.append(0)
-
-        with open(output_file, "wb") as fd:
-            fd.write(output_buffer)
-
-        return output_buffer
+                out.append(byte)
+            else:
+                dist = int(bits[i : i + 12].to01(), 2)
+                i += 12
+                length = int(bits[i : i + 4].to01(), 2)
+                i += 4
+                for _ in range(length):
+                    out.append(out[-dist])
+        if outfile:
+            Path(outfile).write_bytes(out)
+        return out
 
 
 if __name__ == "__main__":
     lz77 = LZ77()
-    lz77.compress("pidmohylnyy-valerian-petrovych-misto76.txt", "pidmohylnyy-valerian-petrovych-misto76.bin", verbose=True)
+    lz77.compress("biblija.txt", "biblija.bin")
+    lz77.compress("CSB_Pew_Bible_2nd_Printing.txt", "CSB_Pew_Bible_2nd_Printing.bin")
+    lz77.compress(
+        "ivanychuk-roman-ivanovych-malvy1004.txt",
+        "ivanychuk-roman-ivanovych-malvy1004.bin",
+    )
+    lz77.compress(
+        "pidmohylnyy-valerian-petrovych-misto76.txt",
+        "after_change_pidmohylnyy-valerian-petrovych-misto76.bin",
+    )
