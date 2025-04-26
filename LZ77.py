@@ -4,31 +4,41 @@ It compresses data by finding repeated sequences and encoding them.
 """
 
 import mmap
-from bitarray import bitarray
 from pathlib import Path
+
+from bitarray import bitarray
 
 
 class LZ77:
+    """
+    LZ77 compression algorithm implementation.
+    This class provides methods to compress and decompress data using the LZ77 algorithm.
+    """
+
     MAX_CHAIN = 64
 
     def __init__(self, window_size=4096, lookahead_buffer_size=18, hash_bits=16):
+        """Initialize the LZ77 compressor with given parameters."""
         self.window_size = window_size
         self.lookahead_buffer_size = lookahead_buffer_size
-        self.HSIZE = 1 << hash_bits
-        self.head = [-1] * self.HSIZE
+        self.hsize = 1 << hash_bits
+        self.head = [-1] * self.hsize
         self.prev = [-1] * (window_size + 1)
 
     def compute_hash(self, data: memoryview, pos: int) -> int:
+        """Compute a hash value for the data starting at the given position."""
         h = 0
         end = min(len(data), pos + 3)
         for i in range(pos, end):
-            h = ((h << 5) ^ data[i]) & (self.HSIZE - 1)
+            h = ((h << 5) ^ data[i]) & (self.hsize - 1)
         return h
 
     def roll_hash(self, old_hash: int, new_byte: int) -> int:
-        return ((old_hash << 5) ^ new_byte) & (self.HSIZE - 1)
+        """Update the hash value by rolling in a new byte."""
+        return ((old_hash << 5) ^ new_byte) & (self.hsize - 1)
 
     def insert_position(self, data: memoryview, pos: int, cur_hash: int):
+        """Insert the current position into the hash table."""
         idx = pos & self.window_size
         self.prev[idx] = self.head[cur_hash]
         self.head[cur_hash] = pos
@@ -36,6 +46,7 @@ class LZ77:
     def find_match(
         self, data: memoryview, pos: int, cur_hash: int
     ) -> tuple[int, int] | None:
+        """Find the longest match for the current position in the sliding window."""
         best_len = 0
         best_dist = 0
         limit = max(0, pos - self.window_size)
@@ -45,9 +56,9 @@ class LZ77:
 
         while candidate >= limit and count < self.MAX_CHAIN:
             length = best_len
-            for L in range(max_look, best_len, -1):
-                if data[candidate : candidate + L] == data[pos : pos + L]:
-                    length = L
+            for l in range(max_look, best_len, -1):
+                if data[candidate : candidate + l] == data[pos : pos + l]:
+                    length = l
                     break
             if length > best_len:
                 best_len = length
@@ -62,6 +73,7 @@ class LZ77:
         return None
 
     def compress(self, infile: str, outfile: str = None) -> bitarray:
+        """Compress the input file and optionally write the output to a file."""
         with open(infile, "rb") as f:
             mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
             data = memoryview(mm)
@@ -100,6 +112,7 @@ class LZ77:
             return output
 
     def decompress(self, infile: str, outfile: str = None) -> bytearray:
+        """Decompress the input file and optionally write the output to a file."""
         with open(infile, "rb") as f:
             bits = bitarray(endian="big")
             bits.fromfile(f)
