@@ -181,12 +181,12 @@ class HuffmanTree:
 
         if f_extension not in ['.jpg', '.bin', '.png']:
             with open(output_f, 'w', encoding='utf-8') as f:
-                f.write(''.join(chr(c) if isinstance(c, int) else c for c in decoded_data))
+                f.write(''.join(c for c in decoded_data))
         else:
             with open(output_f, 'wb') as f:
                 f.write(bytes(decoded_data))
 
 
-# t = HuffmanTree()
-# t.encoding('./compression/customers-100000.csv')
-# t.decoding('compressed.bin', 'compressed_dict.json')
+t = HuffmanTree()
+t.encoding('./compression/customers-100.csv')
+t.decoding('compressed.bin', 'compressed_dict.json')
