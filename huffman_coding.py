@@ -3,9 +3,12 @@ Huffman coding algorithm -
 data compression algorithm
 """
 import json
+import os
+import mmap
+import heapq
 from collections import defaultdict
+from collections import deque
 from bitarray import bitarray
-
 
 
 class Node:
@@ -23,6 +26,9 @@ class Node:
         self.right = None
         self.value = value
         self.val_freq = val_freq
+
+    def __lt__(self, val):
+        return self.val_freq < val.val_freq
 
 class HuffmanTree:
     """
@@ -82,25 +88,23 @@ class HuffmanTree:
         Function builds Huffman Tree.
         """
         nodes = self.nodes[:]
+        heapq.heapify(nodes)
         while len(nodes) != 1:
-            # sorting nodes, because we always need to extract with the smallest freq
-            nodes.sort(key = lambda x: x.val_freq)
-
             # left smallest node
-            l = nodes.pop(0)
+            l = heapq.heappop(nodes)
             # rigth smallest node
-            r = nodes.pop(0)
+            r = heapq.heappop(nodes)
 
             # creating new merged node from the smallest left and right
             new_merged_node = Node('', l.val_freq + r.val_freq)
             new_merged_node.left, new_merged_node.right = l, r
-
-            nodes.append(new_merged_node)
+            heapq.heappush(nodes, new_merged_node)
 
         self.root = nodes[0]
 
+
     def encoding(self, input_f: str, output_f="compressed.bin",\
-        output_dict_f = 'compressed_dict.json'):
+        output_dict_f='compressed_dict.json'):
         """
         Function encodes data from given file using Huffman algorithm.
 
@@ -108,13 +112,14 @@ class HuffmanTree:
         :param output_f: str, file to write encoded data to
         :param output_dict_f: str, file to write encoded data dictionary to
         """
-        # reading normal and binary files
-        try:
-            with open(input_f, encoding="utf-8") as f:
-                data = f.read()
-        except UnicodeDecodeError:
-            with open(input_f, 'rb') as f:
-                data = f.read()
+        f_extension = os.path.splitext(input_f)[1]
+
+        with open(input_f, 'rb') as f:
+            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+            try:
+                data = mm[:].decode('utf-8')
+            except UnicodeDecodeError:
+                data = mm[:]
 
         if not self.root:
             self.char_frequency_dict = self.char_frequency(data)
@@ -127,19 +132,23 @@ class HuffmanTree:
         res = bitarray()
         for char in data:
             res.extend(self.res_codes[char])
+        bit_lengths = len(res)
 
-        # writing data from dictionary
         with open(output_dict_f, 'w', encoding='utf-8') as f:
             final_codes = defaultdict(str)
             for k, v in self.res_codes.items():
                 final_codes[v] = k
-            json.dump(final_codes, f)
+            final_data = {
+                "file_extension": f_extension,
+                "bit_lengths": bit_lengths,
+                "codes_dict": final_codes
+            }
+            json.dump(final_data, f)
 
-        # writing encoded data
         with open(output_f, 'wb') as f:
             res.tofile(f)
 
-    def decoding(self, input_f: str, input_dict_f: str, output_f="decompressed.txt"):
+    def decoding(self, input_f: str, input_dict_f: str):
         """
         Function decodes data from given files using Huffman algorithm.
 
@@ -154,23 +163,30 @@ class HuffmanTree:
         with open(input_dict_f, 'r', encoding='utf-8') as f:
             res_dict = json.load(f)
 
-        data = list(data)
+        real_bits = res_dict['bit_lengths']
+        data = data.to01()[:real_bits]
+        data = deque(data)
+        f_extension = res_dict['file_extension']
+        res_dict = res_dict['codes_dict']
+        output_f = f"decompressed{f_extension}"
         decoded_data = []
         curr_code = ''
 
         while data:
-            curr_el = data.pop(0)
+            curr_el = data.popleft()
             curr_code += str(curr_el)
             if curr_code in res_dict:
                 decoded_data.append(res_dict[curr_code])
                 curr_code = ''
 
-        with open(output_f, 'w', encoding='utf-8') as f:
-            f.write(''.join(str(el) for el in decoded_data))
+        if f_extension not in ['.jpg', '.bin', '.png']:
+            with open(output_f, 'w', encoding='utf-8') as f:
+                f.write(''.join(chr(c) if isinstance(c, int) else c for c in decoded_data))
+        else:
+            with open(output_f, 'wb') as f:
+                f.write(bytes(decoded_data))
 
 
-
-# example for txt file(1000 words)
 # t = HuffmanTree()
-# t.encoding('example.txt')
+# t.encoding('./compression/customers-100000.csv')
 # t.decoding('compressed.bin', 'compressed_dict.json')
