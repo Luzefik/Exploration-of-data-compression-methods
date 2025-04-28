@@ -54,22 +54,25 @@ class LZWCompressor:
 
     @staticmethod
     def compress_file(input_path, output_path):
-        """Compress a file using LZW and save it."""
+        """Compress a file using LZW and save it in binary format."""
         with open(input_path, 'rb') as f:
             data = f.read()
         compressed = LZWCompressor.compress(data)
-        with open(output_path, 'w') as f:
-            f.write(','.join(map(str, compressed)))
+        with open(output_path, 'wb') as f:
+            for num in compressed:
+                f.write(num.to_bytes(4, byteorder='big'))
 
     @staticmethod
     def decompress_file(input_path, output_path):
-        """Decompress a file using LZW and save it."""
-        with open(input_path, 'r') as f:
-            compressed = list(map(int, f.read().split(',')))
+        """Decompress a binary file using LZW and save it."""
+        with open(input_path, 'rb') as f:
+            compressed = []
+            while byte := f.read(4):
+                compressed.append(int.from_bytes(byte, byteorder='big'))
         decompressed = LZWCompressor.decompress(compressed)
         with open(output_path, 'wb') as f:
             f.write(decompressed)
 
 # Example usage:
-# LZWCompressor.compress_file('test.txt', 'compressed.lzw')
-# LZWCompressor.decompress_file('compressed.lzw', 'decompressed.txt')
+LZWCompressor.compress_file('pidmohylnyy-valerian-petrovych-misto76.docx', 'compressed.bin')
+LZWCompressor.decompress_file('compressed.bin', 'decompressed.docx')
