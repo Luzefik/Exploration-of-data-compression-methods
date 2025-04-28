@@ -177,3 +177,12 @@ cython_debug/
 *.pdf
 *.bin
 *.txt
+*.lz77
+*.json
+*.csv
+*.log
+*.pickle
+*.pkl
+*.h5
+*.hdf5
+*.hdf           
