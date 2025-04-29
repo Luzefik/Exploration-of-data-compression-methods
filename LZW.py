@@ -1,10 +1,13 @@
 """
 LZW Compression and Decompression
 """
+
+
 class LZWCompressor:
     """
     A class for LZW compression and decompression.
     """
+
     @staticmethod
     def compress(data: bytes):
         """LZW compression for bytes."""
@@ -55,20 +58,21 @@ class LZWCompressor:
     @staticmethod
     def compress_file(input_path, output_path):
         """Compress a file using LZW and save it."""
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             data = f.read()
         compressed = LZWCompressor.compress(data)
-        with open(output_path, 'w') as f:
-            f.write(','.join(map(str, compressed)))
+        with open(output_path, "w") as f:
+            f.write(",".join(map(str, compressed)))
 
     @staticmethod
     def decompress_file(input_path, output_path):
         """Decompress a file using LZW and save it."""
-        with open(input_path, 'r') as f:
-            compressed = list(map(int, f.read().split(',')))
+        with open(input_path, "r") as f:
+            compressed = list(map(int, f.read().split(",")))
         decompressed = LZWCompressor.decompress(compressed)
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(decompressed)
+
 
 # Example usage:
 # LZWCompressor.compress_file('test.txt', 'compressed.lzw')

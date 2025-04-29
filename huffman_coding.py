@@ -1,237 +1,330 @@
-from collections import defaultdict
+"""
+Huffman coding algorithm -
+data compression algorithm
+"""
+
+import heapq
+import json
+import mmap
+import os
+from collections import Counter, defaultdict, deque
+
+from bitarray import bitarray
+
 
 class Node:
     """
-    Base node for Huffman tree.
+    Class object for Node in Huffman's Tree
     """
-    def __init__(self):
-        self.parent = None
-        self.side = None  # 0 = left, 1 = right
-        self.weight = 0
 
-    def __lt__(self, other):
-        return self.weight < other.weight
+    def __init__(self, value, val_freq: int):
+        """
+        Function initializes the structure of a node.
 
-class LeafNode(Node):
-    """
-    A leaf node with a symbol value.
-    """
-    def __init__(self, value: int, weight: int):
-        super().__init__()
+        :param value: value held by node
+        :val_freq: int, the frequency in our data for this value
+        """
+        self.left = None
+        self.right = None
         self.value = value
-        self.weight = weight
+        self.val_freq = val_freq
 
-    def __repr__(self):
-        return f"Leaf({self.value}:{self.weight})"
+    def __lt__(self, val):
+        return self.val_freq < val.val_freq
 
-class InternalNode(Node):
+
+class BitWriter:
     """
-    An internal node with left and right children.
+    Простий записувач бітів у потік bitarray з вирівнюванням до байта.
     """
-    def __init__(self, left: Node, right: Node):
-        super().__init__()
-        left.parent = self
-        left.side = 0
-        right.parent = self
-        right.side = 1
-        self.left = left
-        self.right = right
-        self.weight = left.weight + right.weight
 
-    def __repr__(self):
-        return f"Internal({self.left}, {self.right})"
+    def __init__(self):
+        self.bits = bitarray(endian="big")
+
+    def write_bits(self, value: int, length: int):
+        # Записує length бітів зі значення value (старший біт першим)
+        for i in range(length - 1, -1, -1):
+            self.bits.append((value >> i) & 1)
+
+    def flush_to_file(self, filename: str):
+        # Додати нулі до вирівнювання в байт
+        while len(self.bits) % 8 != 0:
+            self.bits.append(0)
+        with open(filename, "wb") as f:
+            self.bits.tofile(f)
+
 
 class HuffmanTree:
     """
-    Builds a canonical Huffman tree with depth limit.
+    Class object for Huffman Tree - main structure used
+    in Huffman coding algorithm. Object includes encoding
+    and decoding.
     """
-    def __init__(self, freqs: list[int], limit: int):
-        self.num_symbols = len(freqs)
-        self.limit = limit
-        self.depth_map: dict[int, list[LeafNode]] = {}
-        self.max_depth = 0
-        # Create initial leaf nodes
-        queue = []
-        for sym, wt in enumerate(freqs):
-            if wt > 0:
-                queue.append(LeafNode(sym, wt))
-        # ensure at least two leaves
-        idx = 0
-        while len(queue) < 2:
-            if freqs[idx] == 0:
-                queue.append(LeafNode(idx, 1))
-            idx += 1
-        # build by repeatedly merging smallest
-        queue.sort()
-        while len(queue) > 1:
-            left = queue.pop(0)
-            right = queue.pop(0)
-            queue.append(InternalNode(left, right))
-            queue.sort()
-        self.root = queue[0]
-        # traverse and balance
-        self._traverse()
-        self._balance()
 
-    def _traverse(self):
-        self.depth_map.clear()
-        self.max_depth = 0
-        self._traverse_node(self.root, 0)
+    def __init__(self, data=None):
+        """
+        Function initializes the structure of Huffman Tree.
+        """
+        self.res_codes = {}
+        self.root = None
+        if data:
+            self.char_frequency_dict = self.char_frequency(data)
+            self.nodes = []
+            for val, val_freq in self.char_frequency_dict.items():
+                self.nodes.append(Node(val, val_freq))
 
-    def _traverse_node(self, node: Node, depth: int):
-        if depth > self.max_depth:
-            self.max_depth = depth
-        if isinstance(node, InternalNode):
-            self._traverse_node(node.left, depth+1)
-            self._traverse_node(node.right, depth+1)
-        else:
-            self.depth_map.setdefault(depth, []).append(node)
+    @classmethod
+    def build_from_freq(cls, freq_dict: dict[int, int]) -> "HuffmanTree":
+        """
+        Статичний конструктор: будує Huffman-дерево із зовнішнього словника частот,
+        генерує префіксні коди та повертає інстанс.
+        :param freq_dict: словник {symbol: frequency}
+        :return: готовий обʼєкт HuffmanTree з заповненими res_codes
+        """
+        # 1) Створюємо порожній обʼєкт
+        tree = cls(data=None)
 
-    def _balance(self):
-        # enforce depth limit
-        while self.max_depth > self.limit:
-            # pick a leaf too deep
-            over = self.depth_map.get(self.max_depth, [])
-            if not over:
-                break
-            leafA = over[0]
-            parent1 = leafA.parent
-            # opposite sibling
-            leafB = parent1.right if leafA.side == 0 else parent1.left
-            parent2 = parent1.parent
-            # replace leafA with leafB at parent2
-            if parent1.side == 0:
-                parent2.left = leafB
-                leafB.parent = parent2; leafB.side = 0
-            else:
-                parent2.right = leafB
-                leafB.parent = parent2; leafB.side = 1
-            # try inserting leafA under a shallower leafC
-            moved = False
-            for d in range(self.max_depth-2, 0, -1):
-                leaves = self.depth_map.get(d)
-                if leaves:
-                    leafC = leaves[0]
-                    parent3 = leafC.parent
-                    if leafC.side == 0:
-                        parent3.left = InternalNode(leafA, leafC)
-                        parent3.left.parent = parent3; parent3.left.side = 0
-                    else:
-                        parent3.right = InternalNode(leafA, leafC)
-                        parent3.right.parent = parent3; parent3.right.side = 1
-                    moved = True
-                    break
-            if not moved:
-                break
-            self._traverse()
+        # 2) Наповнюємо частоти й вузли
+        tree.char_frequency_dict = freq_dict
+        tree.nodes = [Node(val, freq) for val, freq in freq_dict.items()]
 
-    def get_table(self) -> 'HuffmanTable':
-        # generate canonical codes from depth_map
-        table = HuffmanTable(self.num_symbols)
-        code = table.code
-        codelen = table.code_len
-        next_code = 0
-        last_shift = 0
-        for length in sorted(self.depth_map):
-            next_code <<= (length - last_shift)
-            last_shift = length
-            leaves = sorted(self.depth_map[length], key=lambda n: n.value)
-            for leaf in leaves:
-                code[leaf.value] = next_code
-                codelen[leaf.value] = length
-                next_code += 1
-        return table
+        # 3) Будуємо дерево
+        heapq.heapify(tree.nodes)
+        while len(tree.nodes) > 1:
+            l = heapq.heappop(tree.nodes)
+            r = heapq.heappop(tree.nodes)
+            parent = Node(None, l.val_freq + r.val_freq)
+            parent.left, parent.right = l, r
+            heapq.heappush(tree.nodes, parent)
+        tree.root = tree.nodes[0]
 
-class HuffmanTable:
-    """
-    Stores codes and lengths, and can pack them per RFC1951.
-    """
-    def __init__(self, num_symbols: int):
-        self.code = [0] * num_symbols
-        self.code_len = [0] * num_symbols
+        # 4) Генеруємо префіксні коди (res_codes)
+        tree.res_codes = {}
+        tree.codes_generation()
 
-    @staticmethod
-    def pack_code_lengths(lit_len: list[int], dist_len: list[int]) -> list[int]:
-        lengths = []
-        HuffmanTable._run_pack(lengths, lit_len)
-        HuffmanTable._run_pack(lengths, dist_len)
-        return lengths
+        return tree
 
-    @staticmethod
-    def _run_pack(lengths: list[int], code_len: list[int]):
-        n = len(code_len)
-        last = code_len[0]
-        run = 1
-        for i in range(1, n+1):
-            same = (i < n and code_len[i] == last)
-            if same:
-                run += 1
-            else:
-                lengths.append(last)
-                run -= 1
-                if last == 0:
-                    # runs of zeros
-                    while run >= 138:
-                        lengths += [18, 138-11]
-                        run -= 138
-                    while run >= 11:
-                        lengths += [18, run-11]
-                        run = 0
-                    while run >= 3:
-                        lengths += [17, run-3]
-                        run -= 3
-                else:
-                    while run >= 3:
-                        lengths += [16, run-3]
-                        run -= 3
-                while run > 0:
-                    lengths.append(last)
-                    run -= 1
-                if i < n:
-                    last = code_len[i]; run = 1
+    def make_canonical(self):
+        """
+        Перетворює self.res_codes (рядкові префіксні коди)
+        в канонічні біти+довжини й зберігає у self.canon_codes.
+        """
+        # 1) Збираємо (symbol, length) пари
+        lengths = [(sym, len(code)) for sym, code in self.res_codes.items()]
+        # 2) Сортуємо за length asc, а потім за sym asc
+        lengths.sort(key=lambda x: (x[1], x[0]))
 
-        # Після визначення класу HuffmanTable:
-
-    def _generate_canonical_codes(code_len: list[int]) -> list[int]:
-        """Повертає список кодів за канонічною схемою зі списку довжин."""
-        lengths = sorted(set(filter(lambda x: x>0, code_len)))
+        canon_codes: dict[int, tuple[int, int]] = {}
         code = 0
-        last_len = 0
-        next_code: dict[int,int] = {}
-        for length in lengths:
-            code <<= (length - last_len)
-            next_code[length] = code
-            last_len = length
-            code += code_len.count(length)
-        codes = [0] * len(code_len)
-        for sym, length in enumerate(code_len):
-            if length > 0:
-                codes[sym] = next_code[length]
-                next_code[length] += 1
-        return codes
+        prev_len = lengths[0][1]
 
-    def _make_fixed_tables():
-        # 1) Створюємо масив довжин для літералів/довжин
-        lit_len = [0]*286
-        for i in range(0, 144):  lit_len[i] = 8
-        for i in range(144,256): lit_len[i] = 9
-        for i in range(256,280): lit_len[i] = 7
-        for i in range(280,286): lit_len[i] = 8
+        for sym, length in lengths:
+            # зсунути вліво, якщо довжина збільшилась
+            code <<= length - prev_len
+            # призначити код цьому символу
+            canon_codes[sym] = (code, length)
+            # і перейти до наступного
+            code += 1
+            prev_len = length
 
-        # 2) Масив довжин для дистанцій
-        dist_len = [5]*30
+        self.canon_codes = canon_codes
 
-        # 3) Генеруємо коди канонічно
-        lit_tbl  = HuffmanTable(len(lit_len))
-        lit_tbl.code_len = lit_len
-        lit_tbl.code     = _generate_canonical_codes(lit_len)
+    def char_frequency(self, data) -> dict:
+        """
+        Function builds dictionary with frequency
+        of each symbol for given data.
 
-        dist_tbl = HuffmanTable(len(dist_len))
-        dist_tbl.code_len = dist_len
-        dist_tbl.code     = _generate_canonical_codes(dist_len)
+        :param data: data to count symbol frequency for
+        :return: dict, dictionary with symbol frequency
+        """
+        char_frequency_dict = defaultdict(int)
+        for el in data:
+            char_frequency_dict[el] += 1
 
-        return lit_tbl, dist_tbl
-    HuffmanTable.LIT, HuffmanTable.DIST = _make_fixed_tables()
+        return char_frequency_dict
 
-    LIT = HuffmanTable(286)
-    DIST = HuffmanTable(30)
+    def codes_generation(self, node=None, curr_code=""):
+        """
+        Recursive function that generates
+        code for each symbol, preoder traversal of Huffman's tree
+
+        :param node: node to start traversal from
+        :param curr_code: str, current code of a symbol
+        """
+
+        # if node is not passed, we start traversal from the root
+        if node is None:
+            node = self.root
+
+        # if our node is a leaf than we write the code for it
+        if node.left is None and node.right is None:
+            self.res_codes.setdefault(node.value, curr_code)
+            return
+
+        self.codes_generation(node.left, curr_code + "0")
+        self.codes_generation(node.right, curr_code + "1")
+
+    def tree(self):
+        """
+        Function builds Huffman Tree.
+        """
+        nodes = self.nodes[:]
+        heapq.heapify(nodes)
+        while len(nodes) != 1:
+            # left smallest node
+            l = heapq.heappop(nodes)
+            # rigth smallest node
+            r = heapq.heappop(nodes)
+
+            # creating new merged node from the smallest left and right
+            new_merged_node = Node("", l.val_freq + r.val_freq)
+            new_merged_node.left, new_merged_node.right = l, r
+            heapq.heappush(nodes, new_merged_node)
+
+        self.root = nodes[0]
+
+    def encoding(
+        self,
+        input_f: str,
+        output_f="compressed.bin",
+        output_dict_f="compressed_dict.json",
+    ):
+        """
+        Function encodes data from given file using Huffman algorithm.
+
+        :param input_f: str, file given by user
+        :param output_f: str, file to write encoded data to
+        :param output_dict_f: str, file to write encoded data dictionary to
+        """
+        f_extension = os.path.splitext(input_f)[1]
+
+        with open(input_f, "rb") as f:
+            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+            try:
+                data = mm[:].decode("utf-8")
+            except UnicodeDecodeError:
+                data = mm[:]
+
+        if not self.root:
+            self.char_frequency_dict = self.char_frequency(data)
+            self.nodes = []
+            for val, val_freq in self.char_frequency_dict.items():
+                self.nodes.append(Node(val, val_freq))
+            self.tree()
+            self.codes_generation()
+
+        res = bitarray()
+        for char in data:
+            res.extend(self.res_codes[char])
+        bit_lengths = len(res)
+
+        with open(output_dict_f, "w", encoding="utf-8") as f:
+            final_codes = defaultdict(str)
+            for k, v in self.res_codes.items():
+                final_codes[v] = k
+            final_data = {
+                "file_extension": f_extension,
+                "bit_lengths": bit_lengths,
+                "codes_dict": final_codes,
+            }
+            json.dump(final_data, f)
+
+        with open(output_f, "wb") as f:
+            res.tofile(f)
+
+    def decoding(self, input_f: str, input_dict_f: str):
+        """
+        Function decodes data from given files using Huffman algorithm.
+
+        :param input_f: str, file given by user.
+        :param input_dict_f: str, file with dictionary given by user.
+        :param output_f: str, file to write decoded data to
+        """
+        with open(input_f, "rb") as f:
+            data = bitarray()
+            data.fromfile(f)
+
+        with open(input_dict_f, "r", encoding="utf-8") as f:
+            res_dict = json.load(f)
+
+        real_bits = res_dict["bit_lengths"]
+        data = data.to01()[:real_bits]
+        data = deque(data)
+        f_extension = res_dict["file_extension"]
+        res_dict = res_dict["codes_dict"]
+        output_f = f"decompressed{f_extension}"
+        decoded_data = []
+        curr_code = ""
+
+        while data:
+            curr_el = data.popleft()
+            curr_code += str(curr_el)
+            if curr_code in res_dict:
+                decoded_data.append(res_dict[curr_code])
+                curr_code = ""
+
+        if f_extension not in [".jpg", ".bin", ".png"]:
+            with open(output_f, "w", encoding="utf-8") as f:
+                f.write("".join(c for c in decoded_data))
+        else:
+            with open(output_f, "wb") as f:
+                f.write(bytes(decoded_data))
+
+    def encode_deflate(
+        self,
+        symbol_list: list[int],
+        distance_list: list[int],
+        extra_bits_list: list[tuple[int, int]],
+        output_f: str,
+        bfinal: int = 0,
+    ):
+        """
+        Створює один DEFLATE-блок з статичним Huffman-кодуванням.
+
+        :param symbol_list: список кодів літералів/довжин/256
+        :param distance_list: список кодів відстаней для кожного матчу
+        :param extra_bits_list: список (count, value) додаткових бітів
+        :param output_f: ім'я вихідного файлу
+        :param bfinal: чи це останній блок (0 або 1)
+        """
+        # 1) Розрахувати частоти
+        freq_sym = Counter(symbol_list)
+        freq_dist = Counter(distance_list)
+
+        # 2) Побудувати Huffman-дерева
+        tree_sym = HuffmanTree.build_from_freq(freq_sym)
+        tree_sym.codes_generation()
+        tree_sym.make_canonical()
+
+        tree_dist = HuffmanTree.build_from_freq(freq_dist)
+        tree_dist.codes_generation()
+        tree_dist.make_canonical()
+
+        # 3) Підготувати записувач бітів
+        writer = BitWriter()
+        # Заголовок: BFINAL (1 біт) + BTYPE=01 (статичний)
+        writer.write_bits(bfinal, 1)
+        writer.write_bits(1, 2)
+
+        # 4) Емітувати всі символи + додбіт + коди відстаней
+        dist_iter = iter(distance_list)
+        for idx, sym in enumerate(symbol_list):
+            # Літерал чи length/EOB
+            bits, length = tree_sym.canon_codes[sym]
+            writer.write_bits(bits, length)
+
+            # Додаткові біти літералу/length чи EOB
+            eb_cnt, eb_val = extra_bits_list[idx]
+            writer.write_bits(eb_val, eb_cnt)
+
+            # Якщо це код довжини матчу, пишемо ще відстань
+            if sym >= 257 and sym != 256:
+                dcode = next(dist_iter)
+                dbits, dlen = tree_dist.canon_codes[dcode]
+                writer.write_bits(dbits, dlen)
+                # додаткові біти відстані
+                eb_cnt_d, eb_val_d = extra_bits_list[idx + 1]
+                writer.write_bits(eb_val_d, eb_cnt_d)
+
+        # 5) Записати в файл
+        writer.flush_to_file(output_f)

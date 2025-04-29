@@ -185,4 +185,7 @@ cython_debug/
 *.pkl
 *.h5
 *.hdf5
-*.hdf           
+*.hdf
+*.deflate
+*.zip
+*.tar
