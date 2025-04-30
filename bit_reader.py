@@ -28,15 +28,32 @@ class BitReader:
         self.pos += 1
         return val
 
-    def read_bits(self, n: int) -> int:
+    def read_bits_lsb(self, n: int) -> int:
         """
         Зчитує n бітів та повертає ціле число.
-        Біти читаються від старшого до молодшого (big-endian).
+        Біти читаються від молодшого до старшого (LSB first).
         :param n: кількість біт
         :return: значення як int
         """
         if self.pos + n > len(self.bits):
-            raise EOFError("Недостатньо біт для зчитування")
+            raise EOFError("Недостатньо біт для зчитування (LSB)")
+        val = 0
+        for i in range(n):
+            bit = self.read_bit()  # read_bit читає наступний доступний біт
+            val |= bit << i  # Зсуваємо прочитаний біт на відповідну позицію
+            # і додаємо до результату
+        return val
+
+    # Ваш існуючий метод для MSB first (можливо, перейменувати для ясності)
+    def read_bits_msb(self, n: int) -> int:
+        """
+        Зчитує n бітів та повертає ціле число.
+        Біти читаються від старшого до молодшого (MSB first).
+        :param n: кількість біт
+        :return: значення як int
+        """
+        if self.pos + n > len(self.bits):
+            raise EOFError("Недостатньо біт для зчитування (MSB)")
         val = 0
         for _ in range(n):
             val = (val << 1) | self.read_bit()

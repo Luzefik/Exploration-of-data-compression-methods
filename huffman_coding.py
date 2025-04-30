@@ -11,6 +11,7 @@ from collections import Counter, defaultdict, deque
 
 from bitarray import bitarray
 
+from bit_reader import BitReader
 from bit_writer import BitWriter
 
 

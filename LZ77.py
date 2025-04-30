@@ -16,7 +16,7 @@ class LZ77:
     This class provides methods to compress and decompress data using the LZ77 algorithm.
     """
 
-    MAX_WINDOW_SIZE = 32768  # Maximum size of the search window was 4096
+    MAX_WINDOW_SIZE = 32768  # Maximum size of the search window
     _length_table = [
         (257, 3, 0),
         (258, 4, 0),
@@ -86,7 +86,7 @@ class LZ77:
         if window_size is None:
             window_size = self.MAX_WINDOW_SIZE
         self.window_size = min(window_size, self.MAX_WINDOW_SIZE)
-        self.lookahead_buffer_size = 258  # was 15
+        self.lookahead_buffer_size = 258  # Maximum match length
 
     def find_match(
         self, data: bytes, current_position: int, hash_table: dict
@@ -119,9 +119,12 @@ class LZ77:
             # Check candidate positions from the hash table
             if hash_key in hash_table:
                 for candidate_position in hash_table[hash_key]:
-                    # Ensure the candidate position is within the sliding window
+                    # Only consider candidates within the window
+                    if candidate_position < current_position - self.window_size:
+                        continue
                     distance = current_position - candidate_position
-                    if distance > self.window_size - 1:  # Enforce maximum distance
+                    # Strict window enforcement
+                    if distance < 1 or distance > min(self.window_size, current_position):
                         continue
 
                     match_length = 0
@@ -165,7 +168,6 @@ class LZ77:
             tokens = []
             hash_table = {}
             i = 0
-
             if verbose:
                 print(f"Tokenizing {input_file} ({len(data)} bytes)")
 
@@ -173,117 +175,63 @@ class LZ77:
                 match = self.find_match(data, i, hash_table)
                 if match:
                     dist, length = match
-                    tokens.append(("match", dist, length))
-                    if verbose:
-                        print(f"  Match @ {i}: dist={dist}, len={length}")
-                    i += length
-                else:
-                    byte = data[i]
-                    tokens.append(("lit", byte))
-                    if verbose:
-                        print(f"  Lit   @ {i}: {byte}")
-                    i += 1
-            print(f"Tokenized {len(data)} bytes into {len(tokens)} tokens: {tokens}")
+                    # Validate distance and length
+                    if dist > self.window_size:
+                        # If distance is too large, treat as literal
+                        byte = data[i]
+                        tokens.append(("lit", byte))
+                        if verbose:
+                            print(f"  Lit   @ {i}: {byte} (distance {dist} too large)")
+                        i += 1
+                        continue
+                    # Only emit match if distance is valid
+                    if dist > 0 and dist <= i:
+                        tokens.append(("match", dist, length))
+                        if verbose:
+                            print(f"  Match @ {i}: dist={dist}, len={length}")
+                        i += length
+                        continue  # skip to next iteration
+                    # Otherwise, treat as literal
+                byte = data[i]
+                tokens.append(("lit", byte))
+                if verbose:
+                    print(f"  Lit   @ {i}: {byte}")
+                i += 1
+
+            print(f"Tokenized {len(data)} bytes into {len(tokens)} tokens: {tokens[:20]}")
+            if any(t[0] == "match" and t[1] > tokens.index(t) for t in tokens[:20]):
+                print("[DEBUG] WARNING: Early match with distance greater than current position detected!")
 
             symbol_list = []
             distance_list = []
-            symbol_extra_bits_list = []
-            distance_extra_bits_list = []
+            length_extra_bits = []  # Новий список для дод. бітів довжин/літералів
+            distance_extra_bits = []  # Новий список для дод. бітів відстаней
 
             for t in tokens:
                 if t[0] == "lit":
-                    byte = t[1]
-                    symbol_list.append(byte)
-                    # для літералу немає дод.біт
-                    symbol_extra_bits_list.append((0, 0))
-                    # і дод.біт відстані тут не додаємо (можна append(None) за бажанням)
-                else:
+                    symbol_list.append(t[1])
+                    # Літерал не має дод. бітів довжини
+                    length_extra_bits.append((0, 0))
+                    # І не має відстані/дод. бітів відстані
+                else:  # t[0] == "match"
                     dist, length = t[1], t[2]
-                    # 1) Логіка мапінгу довжини
+
+                    # Мапінг довжини
                     len_code, len_bits, len_val = self.map_length(length)
                     symbol_list.append(len_code)
-                    symbol_extra_bits_list.append((len_bits, len_val))
+                    length_extra_bits.append((len_bits, len_val))
 
-                    # 2) Логіка мапінгу відстані
+                    # Мапінг відстані
                     dist_code, dist_bits, dist_val = self.map_distance(dist)
                     distance_list.append(dist_code)
-                    distance_extra_bits_list.append((dist_bits, dist_val))
+                    distance_extra_bits.append((dist_bits, dist_val))
 
-            # Додаємо End-of-block маркер (код 256)
+            # Додати код кінця блоку
             symbol_list.append(256)
-            symbol_extra_bits_list.append((0, 0))
+            length_extra_bits.append((0, 0))  # EOB теж не має дод. бітів довжини
 
-            return (
-                symbol_list,
-                distance_list,
-                symbol_extra_bits_list,
-                distance_extra_bits_list,
-            )
-
-        else:
-            output_buffer = bitarray(endian="big")
-            i = 0
-            hash_table = {}
-
-            while i < len(data):
-                max_match = self.find_match(data, i, hash_table)
-
-                if max_match:
-                    (distance, length) = max_match
-                    if distance > self.MAX_WINDOW_SIZE:
-                        raise ValueError(
-                            f"Distance {distance} exceeds the maximum allowable value ({self.MAX_WINDOW_SIZE})."
-                        )
-                    if verbose:
-                        print(
-                            f"Match at position {i}: distance={distance}, length={length}"
-                        )
-
-                    output_buffer.append(True)
-
-                    distance_bits = bitarray(endian="big")
-                    distance_bits.frombytes(bytes([(distance >> 4) & 0xFF]))
-                    output_buffer.extend(distance_bits[-8:])
-
-                    mixed_byte = ((distance & 0xF) << 4) | (length & 0xF)
-                    mixed_bits = bitarray(endian="big")
-                    mixed_bits.frombytes(bytes([mixed_byte]))
-                    output_buffer.extend(mixed_bits[-8:])
-
-                    # update hash_table for matched region
-                    for k in range(i, i + length):
-                        if k >= 2:
-                            sub = data[k - 2 : k + 1]
-                            key = hash(sub)
-                            hash_table.setdefault(key, []).append(k - 2)
-
-                    i += length
-                else:
-                    if verbose:
-                        print(f"Literal at position {i}: {data[i]}")
-
-                    output_buffer.append(False)
-                    char_bits = bitarray(endian="big")
-                    char_bits.frombytes(bytes([data[i]]))
-                    output_buffer.extend(char_bits[-8:])
-
-                    # update hash_table for this literal
-                    if i >= 2:
-                        sub = data[i - 2 : i + 1]
-                        key = hash(sub)
-                        hash_table.setdefault(key, []).append(i - 2)
-
-                    i += 1
-
-            while len(output_buffer) % 8 != 0:
-                output_buffer.append(False)
-            if output_file:
-                with open(output_file, "wb") as fd:
-                    fd.write(struct.pack("!B", ext_len))
-                    fd.write(ext_bytes)
-                    output_buffer.tofile(fd)
-
-            return output_buffer
+            # Повертаємо 4 списки
+            return (symbol_list, length_extra_bits, distance_list, distance_extra_bits)
 
     @staticmethod
     def map_distance(dist: int) -> tuple[int, int, int]:
@@ -331,7 +279,7 @@ class LZ77:
             flag = data[i]
             i += 1
 
-            if not flag:
+            if not flag:  # Literal
                 if i + 8 > len(data):
                     break
 
@@ -340,7 +288,7 @@ class LZ77:
 
                 char_byte = int(char_bits.to01(), 2)
                 output_buffer.append(char_byte)
-            else:
+            else:  # Match
                 if i + 16 > len(data):
                     break
 
@@ -353,15 +301,18 @@ class LZ77:
                 mixed_byte = int(mixed_bits.to01(), 2)
 
                 distance = (dist_high << 4) | (mixed_byte >> 4)
-                length = mixed_byte & 0xF
+                length = (mixed_byte & 0xF) + 3  # Add minimum match length
 
+                # Validate distance
+                if distance == 0 or distance > len(output_buffer):
+                    raise ValueError(f"Invalid distance {distance} at position {i}")
+
+                # Copy match
                 for j in range(length):
                     if len(output_buffer) - distance >= 0:
-                        output_buffer.append(
-                            output_buffer[len(output_buffer) - distance]
-                        )
+                        output_buffer.append(output_buffer[len(output_buffer) - distance])
                     else:
-                        output_buffer.append(0)
+                        raise ValueError(f"Invalid match reference at position {i}")
 
         if output_file is None:
             base = os.path.splitext(input_file)[0]
@@ -373,11 +324,11 @@ class LZ77:
         return output_buffer
 
 
-if __name__ == "__main__":
-    lz77 = LZ77()
-    lz77.compress(
-        "pidmohylnyy-valerian-petrovych-misto76.txt",
-        "exampidmohylnyy-valerian-petrovych-misto76ple.lz77",
-        verbose=True,
-        deflate=True,
-    )
+# if __name__ == "__main__":
+#     lz77 = LZ77()
+#     lz77.compress(
+#         "pidmohylnyy-valerian-petrovych-misto76.txt",
+#         "exampidmohylnyy-valerian-petrovych-misto76ple.lz77",
+#         verbose=True,
+#         deflate=True,
+#     )
