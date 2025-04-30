@@ -192,3 +192,9 @@ cython_debug/
 *.deflate
 *.zip
 *.tar
+*.tar.gz
+*.tar.bz2
+*.png
+*.jpg
+*.jpeg
+*.gif

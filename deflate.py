@@ -12,6 +12,71 @@ from LZ77 import LZ77
 class Deflate:
     def __init__(self, window_size=None):
         self.lz77 = LZ77(window_size=window_size)
+        # Initialize static Huffman encoding maps
+        self._fixed_lit_len_codes = self._get_fixed_lit_len_encoding_map()
+        self._fixed_dist_codes = self._get_fixed_dist_encoding_map()
+
+    @staticmethod
+    def _get_fixed_lit_len_encoding_map() -> dict[int, tuple[int, int]]:
+        """
+        Generates canonical Huffman codes for fixed literal/length tree.
+        Returns dictionary {symbol: (code, code_length)}.
+        """
+        # Lengths from RFC 1951
+        # 0-143: 8 bits
+        # 144-255: 9 bits
+        # 256-279: 7 bits
+        # 280-287: 8 bits
+        lengths = [8] * 144 + [9] * 112 + [7] * 24 + [8] * 8
+        # Add EOB symbol 256 with length 7
+        full_lengths = {}
+        for i, length in enumerate(lengths):
+            full_lengths[i] = length
+        full_lengths[256] = 7  # EOB symbol
+
+        # Convert lengths to canonical codes
+        symbols_with_lengths = sorted([(symbol, length) for symbol, length in full_lengths.items() if length > 0],
+                                    key=lambda x: (x[1], x[0]))
+
+        encoding_map = {}
+        current_code = 0
+        current_length = symbols_with_lengths[0][1] if symbols_with_lengths else 0
+
+        for symbol, length in symbols_with_lengths:
+            current_code <<= (length - current_length)
+            encoding_map[symbol] = (current_code, length)
+            current_code += 1
+            current_length = length
+
+        return encoding_map
+
+    @staticmethod
+    def _get_fixed_dist_encoding_map() -> dict[int, tuple[int, int]]:
+        """
+        Generates canonical Huffman codes for fixed distance tree.
+        Returns dictionary {symbol: (code, code_length)}.
+        """
+        # All distance codes (0-29) have length 5
+        lengths = [5] * 32
+        full_lengths = {}
+        for i, length in enumerate(lengths):
+            full_lengths[i] = length
+
+        # Convert lengths to canonical codes
+        symbols_with_lengths = sorted([(symbol, length) for symbol, length in full_lengths.items() if length > 0],
+                                    key=lambda x: (x[1], x[0]))
+
+        encoding_map = {}
+        current_code = 0
+        current_length = symbols_with_lengths[0][1] if symbols_with_lengths else 0
+
+        for symbol, length in symbols_with_lengths:
+            current_code <<= (length - current_length)
+            encoding_map[symbol] = (current_code, length)
+            current_code += 1
+            current_length = length
+
+        return encoding_map
 
     def compress(
         self,
@@ -23,7 +88,7 @@ class Deflate:
         if output_file is None:
             output_file = os.path.splitext(input_file)[0] + ".deflate"
 
-        # 1) Отримуємо 4 списки від LZ77 (після змін у LZ77.py)
+        # 1) Get lists from LZ77
         symbol_list, length_extra_bits, distance_list, distance_extra_bits = (
             self.lz77.compress(input_file, verbose=verbose, deflate=True)
         )
@@ -57,8 +122,8 @@ class Deflate:
             print(f"  {len(distance_list)} dist symbols")
             print(f"  {len(distance_extra_bits)} corresponding distance extra bits")
 
-        # 2) Розділяємо дані на блоки розумного розміру
-        BLOCK_SIZE = 16384  # Розумний розмір блоку
+        # 2) Split data into blocks
+        BLOCK_SIZE = 16384  # Maximum block size
         blocks = []
         current_block = {
             'symbols': [],
@@ -66,294 +131,105 @@ class Deflate:
             'distances': [],
             'dist_extra': []
         }
+        # Indexes for tracking distances and extra bits
+        dist_list_idx = 0
+        dist_extra_idx = 0
 
+        # Process all symbols from LZ77
         for i in range(len(symbol_list)):
-            current_block['symbols'].append(symbol_list[i])
-            current_block['length_extra'].append(length_extra_bits[i])
+            sym = symbol_list[i]
+            len_extra = length_extra_bits[i]
 
-            if 257 <= symbol_list[i] <= 285:  # Якщо це код довжини
-                current_block['distances'].append(distance_list[len(current_block['distances'])])
-                current_block['dist_extra'].append(distance_extra_bits[len(current_block['dist_extra'])])
+            # Add symbol and its length extra bits to current block
+            current_block['symbols'].append(sym)
+            current_block['length_extra'].append(len_extra)
 
-            # Якщо блок досяг максимального розміру або це останній символ
+            # If it's a length code (match), add distance and its extra bits
+            if 257 <= sym <= 285:
+                # Ensure indices don't exceed list lengths
+                if dist_list_idx < len(distance_list):
+                    current_block['distances'].append(distance_list[dist_list_idx])
+                    dist_list_idx += 1
+                else:
+                    raise IndexError("Mismatch between length codes and distance list length")
+
+                if dist_extra_idx < len(distance_extra_bits):
+                    current_block['dist_extra'].append(distance_extra_bits[dist_extra_idx])
+                    dist_extra_idx += 1
+                else:
+                    raise IndexError("Mismatch between length codes and distance extra bits length")
+
+            # Check if block is full or if this is the last symbol
+            # Important: condition `i == len(symbol_list) - 1` ensures we process the last symbol
             if len(current_block['symbols']) >= BLOCK_SIZE or i == len(symbol_list) - 1:
+                # >>> Important change: Add EOB (256) to the end of current block <<<
+                current_block['symbols'].append(256)  # EOB symbol
+                current_block['length_extra'].append((0, 0))  # EOB has no extra bits
+                # >>> End of important change <<<
+
+                # Add complete block to blocks list
                 blocks.append(current_block)
-                current_block = {
-                    'symbols': [],
-                    'length_extra': [],
-                    'distances': [],
-                    'dist_extra': []
-                }
 
-        # 3) Обробляємо кожен блок окремо
+                # Create new empty block for next symbols
+                # (if this wasn't the last input symbol)
+                if i < len(symbol_list) - 1:
+                    current_block = {
+                        'symbols': [],
+                        'length_extra': [],
+                        'distances': [],
+                        'dist_extra': []
+                    }
+                else:
+                    # If this was the last symbol, no more blocks needed
+                    current_block = None
+
+        # 3) Process each block
         writer = BitWriter()
-        for i, block in enumerate(blocks):
-            # Визначаємо чи це останній блок
-            is_final = bfinal == 1 and i == len(blocks) - 1
+        for block_index, block in enumerate(blocks):
+            # Determine if this is the final block
+            is_final = bfinal == 1 and block_index == len(blocks) - 1
 
-            # Будуємо дерева Хаффмана для блоку
-            freq_sym = Counter(block['symbols'])
-            tree_sym = HuffmanTree.build_from_freq(freq_sym)
-            tree_sym.make_canonical()
-
-            freq_dist = Counter(block['distances'])
-            tree_dist = None
-            if freq_dist:
-                tree_dist = HuffmanTree.build_from_freq(freq_dist)
-                tree_dist.make_canonical()
-
-            # Записуємо заголовок блоку
+            # Write block header
             writer.write_bits_lsb(is_final, 1)  # BFINAL
-            writer.write_bits_lsb(2, 2)  # BTYPE=10 (динамічний)
+            writer.write_bits_lsb(1, 2)         # BTYPE=01 (static)
 
-            # Записуємо опис дерев
-            self.write_tree_description(writer, tree_sym, tree_dist)
-
-            # Записуємо дані блоку
+            # Write block data
             dist_iter = iter(block['distances'])
             len_eb_iter = iter(block['length_extra'])
             dist_eb_iter = iter(block['dist_extra'])
 
+            # Process symbols in block (including added EOB)
             for sym in block['symbols']:
-                # Запис коду Хаффмана для символу/довжини
-                if sym not in tree_sym.canon_codes:
-                    raise ValueError(f"Symbol {sym} not found in Huffman tree")
-                bits, length = tree_sym.canon_codes[sym]
+                # Write Huffman code for symbol/length
+                if sym not in self._fixed_lit_len_codes:
+                    raise ValueError(f"Symbol {sym} not found in FIXED Huffman lit/len tree")
+                bits, length = self._fixed_lit_len_codes[sym]
                 writer.write_bits_msb(bits, length)
 
-                # Запис додаткових бітів
+                # Write extra bits for length/literal
                 eb_cnt, eb_val = next(len_eb_iter)
                 if eb_cnt > 0:
                     writer.write_bits_lsb(eb_val, eb_cnt)
 
-                # Обробка збігу
+                # If it's a length code, write distance
                 if 257 <= sym <= 285:
                     dcode = next(dist_iter)
-                    if tree_dist is None or dcode not in tree_dist.canon_codes:
-                        raise ValueError(f"Distance code {dcode} not found in Huffman tree")
-                    dbits, dlen = tree_dist.canon_codes[dcode]
+                    if dcode not in self._fixed_dist_codes:
+                        raise ValueError(f"Distance code {dcode} not found in FIXED Huffman dist tree")
+                    dbits, dlen = self._fixed_dist_codes[dcode]
                     writer.write_bits_msb(dbits, dlen)
 
+                    # Write distance extra bits
                     eb_cnt_d, eb_val_d = next(dist_eb_iter)
                     if eb_cnt_d > 0:
                         writer.write_bits_lsb(eb_val_d, eb_cnt_d)
 
-        # Записуємо результат у файл
+        # Write result to file
         writer.flush_to_file(output_file)
         if verbose:
-            print(f"Written DEFLATE output to {output_file}")
+            print(f"Written DEFLATE output (using fixed trees) to {output_file}")
 
         return writer.get_bitarray()
-
-    def encode_deflate(
-        self,
-        symbol_list: list[int],
-        distance_list: list[int],
-        extra_bits_list: list[tuple[int, int]],
-        output_f: str,
-        bfinal: int = 0,
-    ):
-        """
-        Створює один DEFLATE-блок з статичним Huffman-кодуванням.
-
-        :param symbol_list: список кодів літералів/довжин/256
-        :param distance_list: список кодів відстаней для кожного матчу
-        :param extra_bits_list: список (count, value) додаткових бітів
-        :param output_f: ім'я вихідного файлу
-        :param bfinal: чи це останній блок (0 або 1)
-        """
-        # 1) Розрахувати частоти
-        freq_sym = Counter(symbol_list)
-        freq_dist = Counter(distance_list)
-
-        # 2) Побудувати Huffman-дерева
-        tree_sym = HuffmanTree.build_from_freq(freq_sym)
-        tree_sym.codes_generation()
-        tree_sym.make_canonical()
-
-        tree_dist = HuffmanTree.build_from_freq(freq_dist)
-        tree_dist.codes_generation()
-        tree_dist.make_canonical()
-
-        # 3) Підготувати записувач бітів
-        writer = BitWriter()
-        # Заголовок: BFINAL (1 біт) + BTYPE=01 (статичний)
-        writer.write_bits_lsb(bfinal, 1)  # BFINAL повинен бути в LSB порядку
-        writer.write_bits_lsb(1, 2)  # BTYPE повинен бути в LSB порядку
-
-        # 4) Емітувати всі символи + додбіт + коди відстаней
-        dist_iter = iter(distance_list)
-        for idx, sym in enumerate(symbol_list):
-            # Літерал чи length/EOB
-            bits, length = tree_sym.canon_codes[sym]
-            writer.write_bits_msb(bits, length)  # Коди Хаффмана в MSB порядку
-
-            # Додаткові біти літералу/length чи EOB
-            eb_cnt, eb_val = extra_bits_list[idx]
-            if eb_cnt > 0:
-                writer.write_bits_lsb(eb_val, eb_cnt)  # Додаткові біти в LSB порядку
-
-            # Якщо це код довжини матчу, пишемо ще відстань
-            if sym >= 257 and sym != 256:
-                dcode = next(dist_iter)
-                dbits, dlen = tree_dist.canon_codes[dcode]
-                writer.write_bits_msb(dbits, dlen)  # Коди Хаффмана в MSB порядку
-
-                # додаткові біти відстані
-                eb_cnt_d, eb_val_d = extra_bits_list[idx + 1]
-                if eb_cnt_d > 0:
-                    writer.write_bits_lsb(
-                        eb_val_d, eb_cnt_d
-                    )  # Додаткові біти в LSB порядку
-
-        # 5) Записати в файл
-        writer.flush_to_file(output_f)
-
-    def write_tree_description(
-        self,
-        writer: BitWriter,
-        tree_lit_len: HuffmanTree,
-        tree_dist: HuffmanTree | None,
-    ):
-        """
-        Записує опис динамічних дерев Хаффмана у DEFLATE потік (для BTYPE=10).
-        Реалізує RLE та третє дерево для довжин кодів.
-        """
-        # --- Крок А: Визначення HLIT, HDIST ---
-        # Кількість кодів літералів/довжин (мінімум 257)
-        hlit = (
-            max(tree_lit_len.canon_codes.keys() if tree_lit_len.canon_codes else [256])
-            + 1
-        )
-        if hlit < 257:
-            hlit = 257  # За стандартом мінімум 257
-        if hlit > 286:  # Максимальне значення за стандартом
-            hlit = 286
-
-        # Кількість кодів відстаней (мінімум 1)
-        hdist = 1
-        if tree_dist and tree_dist.canon_codes:
-            hdist = max(tree_dist.canon_codes.keys()) + 1
-        if hdist < 1:
-            hdist = 1  # За стандартом мінімум 1
-        if hdist > 30:  # Максимальне значення за стандартом
-            hdist = 30
-
-        # --- Крок Б: Створення списку довжин кодів ---
-        lit_len_lengths = [
-            tree_lit_len.canon_codes.get(i, (0, 0))[1] for i in range(hlit)
-        ]
-        dist_lengths = []
-        if tree_dist and tree_dist.canon_codes:
-            dist_lengths = [
-                tree_dist.canon_codes.get(i, (0, 0))[1] for i in range(hdist)
-            ]
-        else:  # Якщо дерева відстаней немає, але hdist=1, потрібна довжина 0
-            dist_lengths = [0] * hdist
-
-        all_code_lengths = lit_len_lengths + dist_lengths
-
-        # --- Крок В: Run-Length Encoding (RLE) ---
-        rle_encoded_lengths = []  # Список значень 0-18
-        rle_extra_bits = []  # Список дод. бітів для 16, 17, 18
-
-        i = 0
-        while i < len(all_code_lengths):
-            length = all_code_lengths[i]
-            # Рахуємо повтори поточної довжини
-            count = 1
-            j = i + 1
-            while j < len(all_code_lengths) and all_code_lengths[j] == length:
-                count += 1
-                j += 1
-
-            if length == 0:  # Кодування послідовностей нулів
-                if count >= 11:
-                    # Використовуємо код 18 (11-138 нулів)
-                    while count >= 11:
-                        num_zeros = min(count, 138)
-                        rle_encoded_lengths.append(18)
-                        rle_extra_bits.append((7, num_zeros - 11))  # 7 дод. біт
-                        count -= num_zeros
-                if count >= 3:
-                    # Використовуємо код 17 (3-10 нулів)
-                    while count >= 3:
-                        num_zeros = min(count, 10)
-                        rle_encoded_lengths.append(17)
-                        rle_extra_bits.append((3, num_zeros - 3))  # 3 дод. біти
-                        count -= num_zeros
-                # Залишок нулів (0, 1 або 2) записуємо як є
-                rle_encoded_lengths.extend([0] * count)
-                rle_extra_bits.extend([(0, 0)] * count)
-
-            else:  # Кодування ненульової довжини та її повторів
-                rle_encoded_lengths.append(length)  # Записуємо саму довжину
-                rle_extra_bits.append((0, 0))
-                count -= 1  # Один раз вже записали
-
-                if count >= 3:
-                    # Використовуємо код 16 (повтор попереднього 3-6 разів)
-                    while count >= 3:
-                        num_repeats = min(count, 6)
-                        rle_encoded_lengths.append(16)
-                        rle_extra_bits.append((2, num_repeats - 3))  # 2 дод. біти
-                        count -= num_repeats
-                # Залишок повторів (0, 1 або 2) записуємо як є
-                rle_encoded_lengths.extend([length] * count)
-                rle_extra_bits.extend([(0, 0)] * count)
-
-            i += j - i  # Пересуваємо індекс на оброблену послідовність
-
-        # --- Крок Г: Побудова дерева для довжин кодів (tree_cl) ---
-        cl_freqs = Counter(rle_encoded_lengths)
-        if not cl_freqs:  # Повинно бути хоча б щось
-            raise ValueError(
-                "Cannot build Code Length Huffman tree from empty frequencies"
-            )
-        tree_cl = HuffmanTree.build_from_freq(cl_freqs)
-        tree_cl.make_canonical()
-
-        # --- Крок Д: Визначення HCLEN ---
-        # Порядок перевірки символів для HCLEN
-        cl_order = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]
-        hclen = 19  # Максимальна можлива кількість
-        for k in range(18, -1, -1):
-            if cl_order[k] in tree_cl.canon_codes:
-                hclen = k + 1
-                break
-        # Мінімальне значення HCLEN - 4
-        if hclen < 4:
-            hclen = 4
-
-        # --- Крок Е: Запис заголовка опису дерев (HLIT, HDIST, HCLEN) ---
-        writer.write_bits_lsb(hlit - 257, 5)
-        writer.write_bits_lsb(hdist - 1, 5)
-        writer.write_bits_lsb(hclen - 4, 4)
-
-        # --- Крок Є: Запис дерева tree_cl ---
-        for k in range(hclen):
-            symbol_in_order = cl_order[k]
-            cl_code_len = tree_cl.canon_codes.get(symbol_in_order, (0, 0))[1]
-            writer.write_bits_lsb(cl_code_len, 3)  # 3 біти LSB first
-
-        # --- Крок Ж: Запис RLE-закодованих даних ---
-        rle_extra_iter = iter(rle_extra_bits)
-        for rle_sym in rle_encoded_lengths:
-            if rle_sym not in tree_cl.canon_codes:
-                raise ValueError(
-                    f"RLE symbol {rle_sym} not found in Code Length Huffman tree!"
-                )
-
-            # Отримуємо код Хаффмана для RLE-символу
-            bits, length = tree_cl.canon_codes[rle_sym]
-            # Записуємо код: MSB first
-            writer.write_bits_msb(bits, length)
-
-            # Отримуємо та записуємо додаткові біти для кодів 16, 17, 18
-            extra_cnt, extra_val = next(rle_extra_iter)
-            if extra_cnt > 0:
-                # Записуємо додаткові біти: LSB first
-                writer.write_bits_lsb(extra_val, extra_cnt)
 
     def decompress(
         self, input_file: str, output_file: str = None, verbose: bool = False
@@ -386,14 +262,23 @@ class Deflate:
                     print(f"Block: BFINAL={bfinal}, BTYPE={btype}")
 
                 if btype == 0:
-                    # Нестиснутий блок
-                    self._decompress_uncompressed_block(reader, decoded_data, verbose)
+                    # Нестиснутий блок - пропускаємо, оскільки ми не використовуємо їх при стисненні
+                    if verbose:
+                        print("Skipping uncompressed block (BTYPE=00) as we don't use them in compression")
+                    reader.byte_align()
+                    len_bytes = reader.read_bits_lsb(16)
+                    nlen_bytes = reader.read_bits_lsb(16)
+                    # Пропускаємо дані блоку
+                    for _ in range(len_bytes):
+                        reader.read_bits_lsb(8)
                 elif btype == 1:
                     # Блок із фіксованим кодуванням Хаффмана
                     self._decompress_fixed_huffman_block(reader, decoded_data, verbose)
                 elif btype == 2:
-                    # Блок із динамічним кодуванням Хаффмана
-                    self._decompress_32kb_block(reader, decoded_data, verbose)
+                    # Блок із динамічним кодуванням Хаффмана - пропускаємо, оскільки ми не використовуємо їх
+                    if verbose:
+                        print("Skipping dynamic Huffman block (BTYPE=10) as we don't use them in compression")
+                    raise ValueError("Dynamic Huffman blocks (BTYPE=10) are not supported")
                 else:
                     raise ValueError(f"Невідомий тип блоку: {btype}")
             except EOFError:
@@ -408,33 +293,6 @@ class Deflate:
             print(f"Декомпресовано {len(decoded_data)} байтів у файл {output_file}")
 
         return decoded_data
-
-    def _decompress_uncompressed_block(
-        self, reader: BitReader, output_buffer: bytearray, verbose: bool
-    ):
-        """
-        Декомпресує нестиснутий блок (BTYPE=0).
-        """
-        # Вирівнюємо до байта
-        reader.byte_align()
-
-        # Зчитуємо довжину та інверсію довжини
-        len_bytes = reader.read_bits_lsb(16)
-        nlen_bytes = reader.read_bits_lsb(16)
-
-        # Перевіряємо, чи доповнення правильне
-        if (len_bytes + nlen_bytes) != 0xFFFF:
-            raise ValueError(
-                f"Неправильне доповнення для нестиснутого блоку: LEN={len_bytes}, NLEN={nlen_bytes}"
-            )
-
-        if verbose:
-            print(f"Uncompressed block: {len_bytes} bytes")
-
-        # Зчитуємо безпосередньо байти
-        for _ in range(len_bytes):
-            byte = reader.read_bits_lsb(8)
-            output_buffer.append(byte)
 
     def _decompress_fixed_huffman_block(
         self, reader: BitReader, output_buffer: bytearray, verbose: bool
@@ -618,16 +476,12 @@ class Deflate:
 
             # Перевіряємо чи код існує для даної довжини
             if (code_len, code) in tree:
-                symbol = tree[(code_len, code)]
-                # Додаткова валідація для кодів відстаней
-                if symbol > 29 and (0, 0) in tree:
-                    return tree[(0, 0)]
-                return symbol
+                return tree[(code_len, code)]
 
             # Якщо досягли максимальної довжини і не знайшли код,
-            # перевіряємо чи є код довжини 0
-            if code_len == max_code_len and (0, 0) in tree:
-                return tree[(0, 0)]
+            # повертаємо None
+            if code_len == max_code_len:
+                return None
 
         return None
 
