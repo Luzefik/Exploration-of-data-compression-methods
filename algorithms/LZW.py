@@ -74,5 +74,5 @@ class LZWCompressor:
             f.write(decompressed)
 
 # Example usage:
-LZWCompressor.compress_file('pidmohylnyy-valerian-petrovych-misto76.docx', 'compressed.bin')
-LZWCompressor.decompress_file('compressed.bin', 'decompressed.docx')
+# LZWCompressor.compress_file('pidmohylnyy-valerian-petrovych-misto76.docx', 'compressed.bin')
+# LZWCompressor.decompress_file('compressed.bin', 'decompressed.docx')
