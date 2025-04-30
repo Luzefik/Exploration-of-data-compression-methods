@@ -103,8 +103,8 @@ class HuffmanTree:
         self.root = nodes[0]
 
 
-    def encoding(self, input_f: str, output_f="compressed.bin",\
-        output_dict_f='compressed_dict.json'):
+    def encoding(self, input_f: str, output_f="compressed_huffman.bin",\
+        output_dict_f='compressed_huffman_dict.json'):
         """
         Function encodes data from given file using Huffman algorithm.
 
@@ -148,7 +148,11 @@ class HuffmanTree:
         with open(output_f, 'wb') as f:
             res.tofile(f)
 
-    def decoding(self, input_f: str, input_dict_f: str):
+        return output_f
+
+    @staticmethod
+    def decoding(input_f="compressed_huffman.bin",\
+        input_dict_f='compressed_huffman_dict.json'):
         """
         Function decodes data from given files using Huffman algorithm.
 
@@ -185,8 +189,3 @@ class HuffmanTree:
         else:
             with open(output_f, 'wb') as f:
                 f.write(bytes(decoded_data))
-
-
-t = HuffmanTree()
-t.encoding('./compression/customers-100.csv')
-t.decoding('compressed.bin', 'compressed_dict.json')
