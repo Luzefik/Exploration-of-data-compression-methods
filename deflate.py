@@ -35,15 +35,17 @@ class Deflate:
         full_lengths[256] = 7  # EOB symbol
 
         # Convert lengths to canonical codes
-        symbols_with_lengths = sorted([(symbol, length) for symbol, length in full_lengths.items() if length > 0],
-                                    key=lambda x: (x[1], x[0]))
+        symbols_with_lengths = sorted(
+            [(symbol, length) for symbol, length in full_lengths.items() if length > 0],
+            key=lambda x: (x[1], x[0]),
+        )
 
         encoding_map = {}
         current_code = 0
         current_length = symbols_with_lengths[0][1] if symbols_with_lengths else 0
 
         for symbol, length in symbols_with_lengths:
-            current_code <<= (length - current_length)
+            current_code <<= length - current_length
             encoding_map[symbol] = (current_code, length)
             current_code += 1
             current_length = length
@@ -63,15 +65,17 @@ class Deflate:
             full_lengths[i] = length
 
         # Convert lengths to canonical codes
-        symbols_with_lengths = sorted([(symbol, length) for symbol, length in full_lengths.items() if length > 0],
-                                    key=lambda x: (x[1], x[0]))
+        symbols_with_lengths = sorted(
+            [(symbol, length) for symbol, length in full_lengths.items() if length > 0],
+            key=lambda x: (x[1], x[0]),
+        )
 
         encoding_map = {}
         current_code = 0
         current_length = symbols_with_lengths[0][1] if symbols_with_lengths else 0
 
         for symbol, length in symbols_with_lengths:
-            current_code <<= (length - current_length)
+            current_code <<= length - current_length
             encoding_map[symbol] = (current_code, length)
             current_code += 1
             current_length = length
@@ -103,8 +107,16 @@ class Deflate:
                 len_extra = length_extra_bits[i] if i < len(length_extra_bits) else None
                 if 257 <= sym <= 285:
                     # This is a match, so show distance and distance_extra
-                    dist = distance_list[dist_idx] if dist_idx < len(distance_list) else None
-                    dist_extra = distance_extra_bits[dist_extra_idx] if dist_extra_idx < len(distance_extra_bits) else None
+                    dist = (
+                        distance_list[dist_idx]
+                        if dist_idx < len(distance_list)
+                        else None
+                    )
+                    dist_extra = (
+                        distance_extra_bits[dist_extra_idx]
+                        if dist_extra_idx < len(distance_extra_bits)
+                        else None
+                    )
                     debug_tuples.append((sym, len_extra, dist, dist_extra))
                     dist_idx += 1
                     dist_extra_idx += 1
@@ -126,10 +138,10 @@ class Deflate:
         BLOCK_SIZE = 16384  # Maximum block size
         blocks = []
         current_block = {
-            'symbols': [],
-            'length_extra': [],
-            'distances': [],
-            'dist_extra': []
+            "symbols": [],
+            "length_extra": [],
+            "distances": [],
+            "dist_extra": [],
         }
         # Indexes for tracking distances and extra bits
         dist_list_idx = 0
@@ -141,30 +153,36 @@ class Deflate:
             len_extra = length_extra_bits[i]
 
             # Add symbol and its length extra bits to current block
-            current_block['symbols'].append(sym)
-            current_block['length_extra'].append(len_extra)
+            current_block["symbols"].append(sym)
+            current_block["length_extra"].append(len_extra)
 
             # If it's a length code (match), add distance and its extra bits
             if 257 <= sym <= 285:
                 # Ensure indices don't exceed list lengths
                 if dist_list_idx < len(distance_list):
-                    current_block['distances'].append(distance_list[dist_list_idx])
+                    current_block["distances"].append(distance_list[dist_list_idx])
                     dist_list_idx += 1
                 else:
-                    raise IndexError("Mismatch between length codes and distance list length")
+                    raise IndexError(
+                        "Mismatch between length codes and distance list length"
+                    )
 
                 if dist_extra_idx < len(distance_extra_bits):
-                    current_block['dist_extra'].append(distance_extra_bits[dist_extra_idx])
+                    current_block["dist_extra"].append(
+                        distance_extra_bits[dist_extra_idx]
+                    )
                     dist_extra_idx += 1
                 else:
-                    raise IndexError("Mismatch between length codes and distance extra bits length")
+                    raise IndexError(
+                        "Mismatch between length codes and distance extra bits length"
+                    )
 
             # Check if block is full or if this is the last symbol
             # Important: condition `i == len(symbol_list) - 1` ensures we process the last symbol
-            if len(current_block['symbols']) >= BLOCK_SIZE or i == len(symbol_list) - 1:
+            if len(current_block["symbols"]) >= BLOCK_SIZE or i == len(symbol_list) - 1:
                 # >>> Important change: Add EOB (256) to the end of current block <<<
-                current_block['symbols'].append(256)  # EOB symbol
-                current_block['length_extra'].append((0, 0))  # EOB has no extra bits
+                current_block["symbols"].append(256)  # EOB symbol
+                current_block["length_extra"].append((0, 0))  # EOB has no extra bits
                 # >>> End of important change <<<
 
                 # Add complete block to blocks list
@@ -174,10 +192,10 @@ class Deflate:
                 # (if this wasn't the last input symbol)
                 if i < len(symbol_list) - 1:
                     current_block = {
-                        'symbols': [],
-                        'length_extra': [],
-                        'distances': [],
-                        'dist_extra': []
+                        "symbols": [],
+                        "length_extra": [],
+                        "distances": [],
+                        "dist_extra": [],
                     }
                 else:
                     # If this was the last symbol, no more blocks needed
@@ -191,18 +209,20 @@ class Deflate:
 
             # Write block header
             writer.write_bits_lsb(is_final, 1)  # BFINAL
-            writer.write_bits_lsb(1, 2)         # BTYPE=01 (static)
+            writer.write_bits_lsb(1, 2)  # BTYPE=01 (static)
 
             # Write block data
-            dist_iter = iter(block['distances'])
-            len_eb_iter = iter(block['length_extra'])
-            dist_eb_iter = iter(block['dist_extra'])
+            dist_iter = iter(block["distances"])
+            len_eb_iter = iter(block["length_extra"])
+            dist_eb_iter = iter(block["dist_extra"])
 
             # Process symbols in block (including added EOB)
-            for sym in block['symbols']:
+            for sym in block["symbols"]:
                 # Write Huffman code for symbol/length
                 if sym not in self._fixed_lit_len_codes:
-                    raise ValueError(f"Symbol {sym} not found in FIXED Huffman lit/len tree")
+                    raise ValueError(
+                        f"Symbol {sym} not found in FIXED Huffman lit/len tree"
+                    )
                 bits, length = self._fixed_lit_len_codes[sym]
                 writer.write_bits_msb(bits, length)
 
@@ -215,7 +235,9 @@ class Deflate:
                 if 257 <= sym <= 285:
                     dcode = next(dist_iter)
                     if dcode not in self._fixed_dist_codes:
-                        raise ValueError(f"Distance code {dcode} not found in FIXED Huffman dist tree")
+                        raise ValueError(
+                            f"Distance code {dcode} not found in FIXED Huffman dist tree"
+                        )
                     dbits, dlen = self._fixed_dist_codes[dcode]
                     writer.write_bits_msb(dbits, dlen)
 
@@ -264,7 +286,9 @@ class Deflate:
                 if btype == 0:
                     # Нестиснутий блок - пропускаємо, оскільки ми не використовуємо їх при стисненні
                     if verbose:
-                        print("Skipping uncompressed block (BTYPE=00) as we don't use them in compression")
+                        print(
+                            "Skipping uncompressed block (BTYPE=00) as we don't use them in compression"
+                        )
                     reader.byte_align()
                     len_bytes = reader.read_bits_lsb(16)
                     nlen_bytes = reader.read_bits_lsb(16)
@@ -277,8 +301,12 @@ class Deflate:
                 elif btype == 2:
                     # Блок із динамічним кодуванням Хаффмана - пропускаємо, оскільки ми не використовуємо їх
                     if verbose:
-                        print("Skipping dynamic Huffman block (BTYPE=10) as we don't use them in compression")
-                    raise ValueError("Dynamic Huffman blocks (BTYPE=10) are not supported")
+                        print(
+                            "Skipping dynamic Huffman block (BTYPE=10) as we don't use them in compression"
+                        )
+                    raise ValueError(
+                        "Dynamic Huffman blocks (BTYPE=10) are not supported"
+                    )
                 else:
                     raise ValueError(f"Невідомий тип блоку: {btype}")
             except EOFError:
@@ -323,14 +351,36 @@ class Deflate:
 
             # Перевіряємо валідність параметрів
             if hlit > 286 or hdist > 30 or hclen > 19:
-                raise ValueError(f"Invalid block parameters: HLIT={hlit}, HDIST={hdist}, HCLEN={hclen}")
+                raise ValueError(
+                    f"Invalid block parameters: HLIT={hlit}, HDIST={hdist}, HCLEN={hclen}"
+                )
 
             if verbose:
-                print(f"32KB Dynamic Huffman block: HLIT={hlit}, HDIST={hdist}, HCLEN={hclen}")
+                print(
+                    f"32KB Dynamic Huffman block: HLIT={hlit}, HDIST={hdist}, HCLEN={hclen}"
+                )
 
             # Порядок кодів для дерева кодів довжин
             code_length_order = [
-                16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15,
+                16,
+                17,
+                18,
+                0,
+                8,
+                7,
+                9,
+                6,
+                10,
+                5,
+                11,
+                4,
+                12,
+                3,
+                13,
+                2,
+                14,
+                1,
+                15,
             ]
 
             # Зчитуємо довжини кодів для дерева кодів довжин
@@ -377,7 +427,9 @@ class Deflate:
                     else:
                         raise ValueError(f"Invalid RLE code: {code}")
                 except EOFError:
-                    raise ValueError("Unexpected end of compressed data while reading code lengths")
+                    raise ValueError(
+                        "Unexpected end of compressed data while reading code lengths"
+                    )
 
             # Розділяємо довжини кодів
             lit_len_lengths = code_lengths[:hlit]
@@ -388,7 +440,9 @@ class Deflate:
             if not lit_len_tree:
                 raise ValueError("Failed to build literal/length tree")
 
-            dist_tree = self._build_huffman_tree_from_lengths(dist_lengths, is_distance_tree=True)
+            dist_tree = self._build_huffman_tree_from_lengths(
+                dist_lengths, is_distance_tree=True
+            )
             if not dist_tree:
                 raise ValueError("Failed to build distance tree")
 
@@ -445,7 +499,9 @@ class Deflate:
 
                 # Перевіряємо, чи відстань не перевищує розмір буфера
                 if distance > len(output_buffer):
-                    raise ValueError(f"Invalid distance {distance} exceeds buffer size {len(output_buffer)}")
+                    raise ValueError(
+                        f"Invalid distance {distance} exceeds buffer size {len(output_buffer)}"
+                    )
 
                 if verbose:
                     print(f"Match: length={length}, distance={distance}")
@@ -453,7 +509,9 @@ class Deflate:
                 # Копіюємо дані з попередньої позиції
                 for i in range(length):
                     if distance > len(output_buffer):
-                        raise ValueError(f"Distance {distance} exceeds buffer size {len(output_buffer)}")
+                        raise ValueError(
+                            f"Distance {distance} exceeds buffer size {len(output_buffer)}"
+                        )
                     output_buffer.append(output_buffer[-distance])
 
     def _decode_huffman_symbol(self, reader: BitReader, tree: dict) -> int | None:
@@ -522,7 +580,9 @@ class Deflate:
                         distance = base_dist + extra
                         # Перевіряємо чи відстань не перевищує максимальну
                         if distance > LZ77.MAX_WINDOW_SIZE:
-                            raise ValueError(f"Distance {distance} exceeds maximum window size {LZ77.MAX_WINDOW_SIZE}")
+                            raise ValueError(
+                                f"Distance {distance} exceeds maximum window size {LZ77.MAX_WINDOW_SIZE}"
+                            )
                         return distance
                     except EOFError:
                         # Якщо не вистачає бітів для додаткових бітів,
@@ -552,13 +612,17 @@ class Deflate:
         # Будуємо дерево з довжин
         return self._build_huffman_tree_from_lengths(lengths)
 
-    def _build_huffman_tree_from_lengths(self, lengths: list[int], is_distance_tree: bool = False) -> dict[tuple[int, int], int]:
+    def _build_huffman_tree_from_lengths(
+        self, lengths: list[int], is_distance_tree: bool = False
+    ) -> dict[tuple[int, int], int]:
         """
         Будує дерево Хаффмана за списком довжин кодів та повертає словник для декодування.
         Словник має формат {(довжина_коду, значення_коду): символ}.
         """
         # Filter out symbols with code length 0
-        symbols_with_lengths = [(length, symbol) for symbol, length in enumerate(lengths) if length > 0]
+        symbols_with_lengths = [
+            (length, symbol) for symbol, length in enumerate(lengths) if length > 0
+        ]
 
         if not symbols_with_lengths:
             # If no symbols have length > 0, return an empty tree
@@ -574,7 +638,7 @@ class Deflate:
 
         for length, symbol in symbols_with_lengths:
             # Pad with zeros if length increased
-            current_code <<= (length - current_length)
+            current_code <<= length - current_length
 
             # Add the current symbol to the decode tree
             decode_tree[(length, current_code)] = symbol
@@ -593,7 +657,6 @@ if __name__ == "__main__":
 
     i_belive_it_works = Deflate()
 
-
     i_belive_it_works.compress(
         "customers-100.csv",
         output_file="output-file-CSV.deflate",
@@ -605,7 +668,6 @@ if __name__ == "__main__":
         output_file="ТИЗМОЖЕШ-file-CSV.csv",
         verbose=True,
     )
-
 
     # i_belive_it_works.compress(
     #     "pidmohylnyy-valerian-petrovych-misto76.txt",

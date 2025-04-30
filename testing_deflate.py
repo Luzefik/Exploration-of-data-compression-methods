@@ -1,8 +1,10 @@
 import os
-import time
 import shutil
+import time
 from pathlib import Path
+
 from deflate import Deflate
+
 
 class TestDeflate:
     def __init__(self):
@@ -13,7 +15,9 @@ class TestDeflate:
         self.comparison_dir = self.results_dir / "comparisons"
         self.comparison_dir.mkdir(exist_ok=True)
 
-    def _compare_files(self, original_path: Path, decompressed_path: Path, test_name: str):
+    def _compare_files(
+        self, original_path: Path, decompressed_path: Path, test_name: str
+    ):
         """Compare original and decompressed files and save results"""
         comparison_file = self.comparison_dir / f"{test_name}_comparison.txt"
 
@@ -24,14 +28,19 @@ class TestDeflate:
             # Basic file info
             f.write("File Information:\n")
             f.write(f"Original size: {os.path.getsize(original_path) / 1024:.2f} KB\n")
-            f.write(f"Decompressed size: {os.path.getsize(decompressed_path) / 1024:.2f} KB\n\n")
+            f.write(
+                f"Decompressed size: {os.path.getsize(decompressed_path) / 1024:.2f} KB\n\n"
+            )
 
             # Compare first 1000 lines
             f.write("First 1000 lines comparison:\n")
             f.write("-" * 50 + "\n")
 
-            with open(original_path, "r", encoding="utf-8", errors="ignore") as orig, \
-                 open(decompressed_path, "r", encoding="utf-8", errors="ignore") as decomp:
+            with open(
+                original_path, "r", encoding="utf-8", errors="ignore"
+            ) as orig, open(
+                decompressed_path, "r", encoding="utf-8", errors="ignore"
+            ) as decomp:
 
                 for i, (orig_line, decomp_line) in enumerate(zip(orig, decomp)):
                     if i >= 1000:
@@ -74,10 +83,7 @@ class TestDeflate:
         # Compression
         start_time = time.time()
         self.deflate.compress(
-            str(input_path),
-            output_file=str(compressed_path),
-            verbose=verbose,
-            bfinal=1
+            str(input_path), output_file=str(compressed_path), verbose=verbose, bfinal=1
         )
         compress_time = time.time() - start_time
         compressed_size = os.path.getsize(compressed_path)
@@ -90,9 +96,7 @@ class TestDeflate:
         # Decompression
         start_time = time.time()
         self.deflate.decompress(
-            str(compressed_path),
-            output_file=str(decompressed_path),
-            verbose=verbose
+            str(compressed_path), output_file=str(decompressed_path), verbose=verbose
         )
         decompress_time = time.time() - start_time
 
@@ -110,7 +114,9 @@ class TestDeflate:
             print("✅ Test passed: Files match")
         else:
             print("❌ Test failed: Files don't match")
-            print(f"See comparison results in: {self.comparison_dir / f'{input_file}_comparison.txt'}")
+            print(
+                f"See comparison results in: {self.comparison_dir / f'{input_file}_comparison.txt'}"
+            )
 
         return {
             "file": input_file,
@@ -119,12 +125,13 @@ class TestDeflate:
             "compression_ratio": compression_ratio,
             "compress_time": compress_time,
             "decompress_time": decompress_time,
-            "success": success
+            "success": success,
         }
 
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA-256 hash of a file"""
         import hashlib
+
         sha256_hash = hashlib.sha256()
         with open(file_path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
@@ -151,7 +158,7 @@ class TestDeflate:
                 "SamplePNGImage_100kbmb.png",
                 # "SamplePNGImage_1mbmb.png",
                 # "SamplePNGImage_10mbmb.png"
-            ]
+            ],
         }
 
         results = []
@@ -169,7 +176,7 @@ class TestDeflate:
 
         # Print summary
         print("\nTest Summary:")
-        print("="*50)
+        print("=" * 50)
         for result in results:
             status = "✅" if result["success"] else "❌"
             print(f"{status} {result['file']}:")
@@ -179,8 +186,11 @@ class TestDeflate:
             print(f"  Compress time: {result['compress_time']:.2f}s")
             print(f"  Decompress time: {result['decompress_time']:.2f}s")
             if not result["success"]:
-                print(f"  Comparison file: {self.comparison_dir / f'{result['file']}_comparison.txt'}")
-            print("-"*50)
+                print(
+                    f"  Comparison file: {self.comparison_dir / f'{result['file']}_comparison.txt'}"
+                )
+            print("-" * 50)
+
 
 if __name__ == "__main__":
     tester = TestDeflate()

@@ -124,7 +124,9 @@ class LZ77:
                         continue
                     distance = current_position - candidate_position
                     # Strict window enforcement
-                    if distance < 1 or distance > min(self.window_size, current_position):
+                    if distance < 1 or distance > min(
+                        self.window_size, current_position
+                    ):
                         continue
 
                     match_length = 0
@@ -198,9 +200,13 @@ class LZ77:
                     print(f"  Lit   @ {i}: {byte}")
                 i += 1
 
-            print(f"Tokenized {len(data)} bytes into {len(tokens)} tokens: {tokens[:20]}")
+            print(
+                f"Tokenized {len(data)} bytes into {len(tokens)} tokens: {tokens[:20]}"
+            )
             if any(t[0] == "match" and t[1] > tokens.index(t) for t in tokens[:20]):
-                print("[DEBUG] WARNING: Early match with distance greater than current position detected!")
+                print(
+                    "[DEBUG] WARNING: Early match with distance greater than current position detected!"
+                )
 
             symbol_list = []
             distance_list = []
@@ -310,7 +316,9 @@ class LZ77:
                 # Copy match
                 for j in range(length):
                     if len(output_buffer) - distance >= 0:
-                        output_buffer.append(output_buffer[len(output_buffer) - distance])
+                        output_buffer.append(
+                            output_buffer[len(output_buffer) - distance]
+                        )
                     else:
                         raise ValueError(f"Invalid match reference at position {i}")
 
