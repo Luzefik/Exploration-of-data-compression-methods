@@ -82,7 +82,7 @@ class Deflate:
 
         return encoding_map
 
-    def compress(
+    def compress_file(
         self,
         input_file: str,
         output_file: str = None,
@@ -253,7 +253,7 @@ class Deflate:
 
         return writer.get_bitarray()
 
-    def decompress(
+    def decompress_file(
         self, input_file: str, output_file: str = None, verbose: bool = False
     ) -> bytes:
         """
@@ -657,25 +657,25 @@ if __name__ == "__main__":
 
     i_belive_it_works = Deflate()
 
-    i_belive_it_works.compress(
+    i_belive_it_works.compress_file(
         "customers-100.csv",
         output_file="output-file-CSV.deflate",
         verbose=True,
         bfinal=1,
     )
-    i_belive_it_works.decompress(
+    i_belive_it_works.decompress_file(
         "output-file-CSV.deflate",
         output_file="ТИЗМОЖЕШ-file-CSV.csv",
         verbose=True,
     )
 
-    # i_belive_it_works.compress(
+    # i_belive_it_works.compress_file(
     #     "pidmohylnyy-valerian-petrovych-misto76.txt",
     #     output_file="output-file-2.deflate",
     #     verbose=True,
     #     bfinal=1,
     # )
-    i_belive_it_works.decompress(
+    i_belive_it_works.decompress_file(
         "output-file-2.deflate",
         output_file="БУДЬЛАСКА_____output-file-2.txt",
         verbose=True,

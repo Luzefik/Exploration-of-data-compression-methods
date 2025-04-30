@@ -82,7 +82,7 @@ class TestDeflate:
 
         # Compression
         start_time = time.time()
-        self.deflate.compress(
+        self.deflate.compress_file(
             str(input_path), output_file=str(compressed_path), verbose=verbose, bfinal=1
         )
         compress_time = time.time() - start_time
@@ -95,7 +95,7 @@ class TestDeflate:
 
         # Decompression
         start_time = time.time()
-        self.deflate.decompress(
+        self.deflate.decompress_file(
             str(compressed_path), output_file=str(decompressed_path), verbose=verbose
         )
         decompress_time = time.time() - start_time
