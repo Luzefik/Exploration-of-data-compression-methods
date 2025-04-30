@@ -73,6 +73,7 @@ class MainWindow(QMainWindow):
             "font-weight: 500;"
         )
         self.file_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.selected_file_size = None
         self.layout.addWidget(self.file_label)
 
         self.choose_alg = QLabel('Choose algorithm:')
@@ -121,6 +122,17 @@ class MainWindow(QMainWindow):
         self.compress_button.setFixedSize(QSize(200, 60))
         self.compress_button.clicked.connect(self.compress_file)
 
+        self.compress_file_size = 0
+        self.compressed_size_label = QLabel("")
+        self.compressed_size_label.setStyleSheet(
+            "font-size: 15px;"
+            "color: black;"
+            "font-weight: 500;"
+        )
+        self.compressed_size_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout.addWidget(self.compressed_size_label)
+
+
 
         compress_button_layout = QHBoxLayout()
         compress_button_layout.addStretch()
@@ -150,6 +162,8 @@ class MainWindow(QMainWindow):
         self.layout.addLayout(decompress_button_layout)
 
 
+
+
         self.central_widget.setLayout(self.layout)
         self.setCentralWidget(self.central_widget)
 
@@ -163,6 +177,7 @@ class MainWindow(QMainWindow):
             files = dialog.selectedFiles()
             self.selected_file = files[0]
             file_ext = os.path.splitext(self.selected_file)[1].lower()
+            self.selected_file_size = os.stat(self.selected_file).st_size
 
             acceptable_extensions = ['.jpg', '.tif', '.png', '.gif', \
             '.flac', '.mp3', '.mpeg', '.txt', '.csv', '.json']
@@ -181,15 +196,18 @@ class MainWindow(QMainWindow):
             return
 
         # lz77 and deflate to be added
-        algorithms_to_call = {'Huffman': HuffmanTree(), \
-        'LZW': LZWCompressor(), 'LZ78': LZ78Compressor()}
+        algorithms_to_call = {'Huffman': HuffmanTree()}
 
         algorithm = self.algorithms_box.currentText()
+        # file_to_encode_ext = ''
         if algorithm in algorithms_to_call:
             file_to_encode = algorithms_to_call.get(algorithm)
             file_to_encode.compress_file(self.selected_file)
+            # file_to_encode_ext = os.path.splitext(self.selected_file)[1]
 
         self.compression_done = True
+        self.compress_file_size  = os.stat(f'./compressed_{algorithm.lower()}.bin').st_size
+        self.compressed_size_label.setText(f'Original size was: {round(self.selected_file_size / 1024, 2)} KB, now size is: {round(self.compress_file_size/ 1024, 2)} KB')
         QMessageBox.information(self, "Success", f"File compressed using {algorithm}!")
 
     def decompress_file(self):
@@ -204,8 +222,7 @@ class MainWindow(QMainWindow):
             return
 
         # lz77 and deflate to be added
-        algorithms_to_call = {'Huffman': HuffmanTree(), \
-        'LZW': LZWCompressor(), 'LZ78': LZ78Compressor()}
+        algorithms_to_call = {'Huffman': HuffmanTree()}
         algorithm = self.algorithms_box.currentText()
 
         if algorithm in algorithms_to_call:
