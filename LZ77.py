@@ -78,7 +78,7 @@ class LZ77:
             return (best_match_distance, best_match_length)
         return None
 
-    def compress(
+    def compress_file(
         self, input_file: str, output_file: str, verbose: bool = False
     ) -> bitarray:
         """
@@ -149,7 +149,7 @@ class LZ77:
 
         return output_buffer
 
-    def decompress(self, input_file: str, output_file: str = None) -> bytearray:
+    def decompress_file(self, input_file: str, output_file: str = None) -> bytearray:
         """
         Decompresses the input file using the LZ77 algorithm.
         """

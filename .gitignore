@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Test folder
+test/
+
 # C extensions
 *.so
 
@@ -185,4 +188,13 @@ cython_debug/
 *.pkl
 *.h5
 *.hdf5
-*.hdf           
+*.hdf
+*.deflate
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.png
+*.jpg
+*.jpeg
+*.gif
