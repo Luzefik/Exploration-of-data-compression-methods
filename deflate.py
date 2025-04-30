@@ -375,26 +375,30 @@ class Deflate:
         # Декодування буде відбуватися доки не дійдемо до кінця файлу або до останнього блоку
         is_final_block = False
         while not is_final_block:
-            # Зчитуємо заголовок блоку
-            bfinal = reader.read_bit()
-            is_final_block = bfinal == 1
+            try:
+                # Зчитуємо заголовок блоку
+                bfinal = reader.read_bit()
+                is_final_block = bfinal == 1
 
-            btype = reader.read_bits_lsb(2)
+                btype = reader.read_bits_lsb(2)
 
-            if verbose:
-                print(f"Block: BFINAL={bfinal}, BTYPE={btype}")
+                if verbose:
+                    print(f"Block: BFINAL={bfinal}, BTYPE={btype}")
 
-            if btype == 0:
-                # Нестиснутий блок
-                self._decompress_uncompressed_block(reader, decoded_data, verbose)
-            elif btype == 1:
-                # Блок із фіксованим кодуванням Хаффмана
-                self._decompress_fixed_huffman_block(reader, decoded_data, verbose)
-            elif btype == 2:
-                # Блок із динамічним кодуванням Хаффмана
-                self._decompress_32kb_block(reader, decoded_data, verbose)
-            else:
-                raise ValueError(f"Невідомий тип блоку: {btype}")
+                if btype == 0:
+                    # Нестиснутий блок
+                    self._decompress_uncompressed_block(reader, decoded_data, verbose)
+                elif btype == 1:
+                    # Блок із фіксованим кодуванням Хаффмана
+                    self._decompress_fixed_huffman_block(reader, decoded_data, verbose)
+                elif btype == 2:
+                    # Блок із динамічним кодуванням Хаффмана
+                    self._decompress_32kb_block(reader, decoded_data, verbose)
+                else:
+                    raise ValueError(f"Невідомий тип блоку: {btype}")
+            except EOFError:
+                # Якщо досягли кінця файлу, виходимо з циклу
+                break
 
         # Записуємо результат у файл
         with open(output_file, "wb") as f:
@@ -736,25 +740,25 @@ if __name__ == "__main__":
     i_belive_it_works = Deflate()
 
 
-    # i_belive_it_works.compress(
-    #     "customers-100.csv",
-    #     output_file="output-file-CSV.deflate",
-    #     verbose=True,
-    #     bfinal=1,
-    # )
-    # i_belive_it_works.decompress(
-    #     "output-file-CSV.deflate",
-    #     output_file="ТИЗМОЖЕШ-file-CSV.csv",
-    #     verbose=True,
-    # )
-
-
     i_belive_it_works.compress(
-        "pidmohylnyy-valerian-petrovych-misto76.txt",
-        output_file="output-file-2.deflate",
+        "customers-100.csv",
+        output_file="output-file-CSV.deflate",
         verbose=True,
         bfinal=1,
     )
+    i_belive_it_works.decompress(
+        "output-file-CSV.deflate",
+        output_file="ТИЗМОЖЕШ-file-CSV.csv",
+        verbose=True,
+    )
+
+
+    # i_belive_it_works.compress(
+    #     "pidmohylnyy-valerian-petrovych-misto76.txt",
+    #     output_file="output-file-2.deflate",
+    #     verbose=True,
+    #     bfinal=1,
+    # )
     i_belive_it_works.decompress(
         "output-file-2.deflate",
         output_file="БУДЬЛАСКА_____output-file-2.txt",
