@@ -165,6 +165,7 @@ class LZ77:
             tokens = []
             hash_table = {}
             i = 0
+
             if verbose:
                 print(f"Tokenizing {input_file} ({len(data)} bytes)")
 
@@ -183,33 +184,42 @@ class LZ77:
                         print(f"  Lit   @ {i}: {byte}")
                     i += 1
             print(f"Tokenized {len(data)} bytes into {len(tokens)} tokens: {tokens}")
+
             symbol_list = []
             distance_list = []
-            extra_bits_list = []  # список пар (count, value)
+            symbol_extra_bits_list = []
+            distance_extra_bits_list = []
 
             for t in tokens:
                 if t[0] == "lit":
-                    symbol_list.append(t[1])
-                    # літерал не має дод біт → (0, 0)
-                    extra_bits_list.append((0, 0))
+                    byte = t[1]
+                    symbol_list.append(byte)
+                    # для літералу немає дод.біт
+                    symbol_extra_bits_list.append((0, 0))
+                    # і дод.біт відстані тут не додаємо (можна append(None) за бажанням)
                 else:
                     dist, length = t[1], t[2]
-
-                    # map length
+                    # 1) Логіка мапінгу довжини
                     len_code, len_bits, len_val = self.map_length(length)
                     symbol_list.append(len_code)
-                    extra_bits_list.append((len_bits, len_val))
+                    symbol_extra_bits_list.append((len_bits, len_val))
 
-                    # map distance
+                    # 2) Логіка мапінгу відстані
                     dist_code, dist_bits, dist_val = self.map_distance(dist)
                     distance_list.append(dist_code)
-                    extra_bits_list.append((dist_bits, dist_val))
+                    distance_extra_bits_list.append((dist_bits, dist_val))
 
-            # додати код кінця блоку
+            # Додаємо End-of-block маркер (код 256)
             symbol_list.append(256)
-            extra_bits_list.append((0, 0))
+            symbol_extra_bits_list.append((0, 0))
 
-            return (symbol_list, distance_list, extra_bits_list)
+            return (
+                symbol_list,
+                distance_list,
+                symbol_extra_bits_list,
+                distance_extra_bits_list,
+            )
+
         else:
             output_buffer = bitarray(endian="big")
             i = 0
@@ -363,11 +373,11 @@ class LZ77:
         return output_buffer
 
 
-# if __name__ == "__main__":
-#     lz77 = LZ77()
-#     lz77.compress(
-#         "pidmohylnyy-valerian-petrovych-misto76.txt",
-#         "exampidmohylnyy-valerian-petrovych-misto76ple.lz77",
-#         verbose=True,
-#         deflate=True,
-#     )
+if __name__ == "__main__":
+    lz77 = LZ77()
+    lz77.compress(
+        "pidmohylnyy-valerian-petrovych-misto76.txt",
+        "exampidmohylnyy-valerian-petrovych-misto76ple.lz77",
+        verbose=True,
+        deflate=True,
+    )

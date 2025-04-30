@@ -11,6 +11,8 @@ from collections import Counter, defaultdict, deque
 
 from bitarray import bitarray
 
+from bit_writer import BitWriter
+
 
 class Node:
     """
@@ -31,27 +33,6 @@ class Node:
 
     def __lt__(self, val):
         return self.val_freq < val.val_freq
-
-
-class BitWriter:
-    """
-    Простий записувач бітів у потік bitarray з вирівнюванням до байта.
-    """
-
-    def __init__(self):
-        self.bits = bitarray(endian="big")
-
-    def write_bits(self, value: int, length: int):
-        # Записує length бітів зі значення value (старший біт першим)
-        for i in range(length - 1, -1, -1):
-            self.bits.append((value >> i) & 1)
-
-    def flush_to_file(self, filename: str):
-        # Додати нулі до вирівнювання в байт
-        while len(self.bits) % 8 != 0:
-            self.bits.append(0)
-        with open(filename, "wb") as f:
-            self.bits.tofile(f)
 
 
 class HuffmanTree:
@@ -269,62 +250,3 @@ class HuffmanTree:
         else:
             with open(output_f, "wb") as f:
                 f.write(bytes(decoded_data))
-
-    def encode_deflate(
-        self,
-        symbol_list: list[int],
-        distance_list: list[int],
-        extra_bits_list: list[tuple[int, int]],
-        output_f: str,
-        bfinal: int = 0,
-    ):
-        """
-        Створює один DEFLATE-блок з статичним Huffman-кодуванням.
-
-        :param symbol_list: список кодів літералів/довжин/256
-        :param distance_list: список кодів відстаней для кожного матчу
-        :param extra_bits_list: список (count, value) додаткових бітів
-        :param output_f: ім'я вихідного файлу
-        :param bfinal: чи це останній блок (0 або 1)
-        """
-        # 1) Розрахувати частоти
-        freq_sym = Counter(symbol_list)
-        freq_dist = Counter(distance_list)
-
-        # 2) Побудувати Huffman-дерева
-        tree_sym = HuffmanTree.build_from_freq(freq_sym)
-        tree_sym.codes_generation()
-        tree_sym.make_canonical()
-
-        tree_dist = HuffmanTree.build_from_freq(freq_dist)
-        tree_dist.codes_generation()
-        tree_dist.make_canonical()
-
-        # 3) Підготувати записувач бітів
-        writer = BitWriter()
-        # Заголовок: BFINAL (1 біт) + BTYPE=01 (статичний)
-        writer.write_bits(bfinal, 1)
-        writer.write_bits(1, 2)
-
-        # 4) Емітувати всі символи + додбіт + коди відстаней
-        dist_iter = iter(distance_list)
-        for idx, sym in enumerate(symbol_list):
-            # Літерал чи length/EOB
-            bits, length = tree_sym.canon_codes[sym]
-            writer.write_bits(bits, length)
-
-            # Додаткові біти літералу/length чи EOB
-            eb_cnt, eb_val = extra_bits_list[idx]
-            writer.write_bits(eb_val, eb_cnt)
-
-            # Якщо це код довжини матчу, пишемо ще відстань
-            if sym >= 257 and sym != 256:
-                dcode = next(dist_iter)
-                dbits, dlen = tree_dist.canon_codes[dcode]
-                writer.write_bits(dbits, dlen)
-                # додаткові біти відстані
-                eb_cnt_d, eb_val_d = extra_bits_list[idx + 1]
-                writer.write_bits(eb_val_d, eb_cnt_d)
-
-        # 5) Записати в файл
-        writer.flush_to_file(output_f)
