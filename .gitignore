@@ -9,6 +9,8 @@ test/
 # C extensions
 *.so
 
+compression/
+
 # Distribution / packaging
 .Python
 build/
