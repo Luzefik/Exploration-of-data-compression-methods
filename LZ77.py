@@ -28,7 +28,8 @@ class LZ77:
         self, data: bytes, current_position: int, hash_table: dict
     ) -> tuple[int, int] | None:
         """
-        Find the longest match in the search window using a hash table.
+        Find the longest match in the search window using a hash table,
+        with integrated cleanup of stale candidate positions.
         """
         end_of_buffer = min(current_position + self.lookahead_buffer_size, len(data))
 
@@ -42,37 +43,54 @@ class LZ77:
         # Update hash table with the current substring
         if current_position >= 2:  # Ensure we have at least 3 bytes to hash
             substring = data[current_position - 2 : current_position + 1]
-            hash_key = hash(substring)
-            if hash_key not in hash_table:
-                hash_table[hash_key] = []
-            hash_table[hash_key].append(current_position - 2)
+            hash_key_to_add = hash(substring)
+            if hash_key_to_add not in hash_table:
+                hash_table[hash_key_to_add] = []
+            hash_table[hash_key_to_add].append(current_position - 2)
 
         # Get the current substring to match
         if current_position + 2 < len(data):
             current_substring = data[current_position : current_position + 3]
-            hash_key = hash(current_substring)
+            hash_key_to_find = hash(current_substring)
 
             # Check candidate positions from the hash table
-            if hash_key in hash_table:
-                for candidate_position in hash_table[hash_key]:
-                    # Ensure the candidate position is within the sliding window
-                    distance = current_position - candidate_position
-                    if distance > self.window_size - 1:  # Enforce maximum distance
-                        continue
+            if hash_key_to_find in hash_table:
+                candidate_list = hash_table[hash_key_to_find]
 
-                    match_length = 0
-                    while (
-                        current_position + match_length < len(data)
-                        and candidate_position + match_length < current_position
-                        and match_length < self.lookahead_buffer_size
-                        and data[candidate_position + match_length]
-                        == data[current_position + match_length]
-                    ):
-                        match_length += 1
+                # Determine the minimum valid candidate position
+                min_valid_candidate_pos = current_position - (self.window_size - 1)
 
-                    if match_length > best_match_length:
-                        best_match_length = match_length
-                        best_match_distance = distance
+                # Create a new list containing only valid candidates
+                valid_candidates = [pos for pos in candidate_list if pos >= min_valid_candidate_pos]
+
+                # Update the entry in the hash table
+                if not valid_candidates:
+                    # If after cleaning the list is empty, delete the key
+                    del hash_table[hash_key_to_find]
+                else:
+                    # Otherwise replace the old list with the cleaned one
+                    hash_table[hash_key_to_find] = valid_candidates
+
+                    # Iterate over the cleaned list of valid candidates
+                    for candidate_position in valid_candidates:
+                        distance = current_position - candidate_position
+
+                        match_length = 0
+                        while (
+                            current_position + match_length < len(data)
+                            and candidate_position + match_length < current_position
+                            and match_length < self.lookahead_buffer_size
+                            and data[candidate_position + match_length]
+                            == data[current_position + match_length]
+                        ):
+                            match_length += 1
+
+                        if match_length > best_match_length:
+                            best_match_length = match_length
+                            best_match_distance = distance
+                            # Early exit if maximum length is found
+                            if best_match_length == self.lookahead_buffer_size:
+                                break
 
         if best_match_length >= 3:  # Only encode matches of length 3 or more
             return (best_match_distance, best_match_length)
@@ -91,7 +109,7 @@ class LZ77:
 
         with open(input_file, "r+b") as f:
             buf = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            data = buf[:]
+            data = memoryview(buf)  # Use memoryview instead of copying the entire buffer
 
         output_buffer = bitarray(endian="big")
         i = 0
@@ -213,3 +231,71 @@ class LZ77:
             fd.write(output_buffer)
 
         return output_buffer
+
+
+if __name__ == "__main__":
+    import time
+
+    lz77 = LZ77()
+
+    # Test files
+    test_files = [
+        # Literature
+        ("customers-100000.csv", "customers-100000.lz77"),
+        ("large-file.json", "large-file.lz77"),
+        ("biblija.txt", "biblija.lz77"),
+        # ("CSB_Pew_Bible_2nd_Printing.txt", "CSB_Pew_Bible_2nd_Printing.lz77"),
+        # ("flober-hiustav-pani-bovari4172.txt", "flober-hiustav-pani-bovari4172.lz77"),
+        ("harrypotter.txt", "harrypotter.lz77"),
+        # ("ivanychuk-roman-ivanovych-malvy1004.txt", "ivanychuk-roman-ivanovych-malvy1004.lz77"),
+        ("pidmohylnyy-valerian-petrovych-misto76.txt", "pidmohylnyy-valerian-petrovych-misto76.lz77"),
+
+        # Educational
+        # ("Ekonomika_Instruktsiia_z_vykorystannia.txt", "Ekonomika_Instruktsiia_z_vykorystannia.lz77"),
+        # ("Frikonomika_Zvorotnyi_bik_usoho_na_sviti.txt", "Frikonomika_Zvorotnyi_bik_usoho_na_sviti.lz77"),
+        # ("LogicKozachenko2022.txt", "LogicKozachenko2022.lz77")
+    ]
+
+    # Compression tests
+    print("\n=== Compression Tests ===")
+    compression_times = {}
+
+    for input_file, output_file in test_files:
+        input_path = f"./compression/{input_file}"
+        output_path = f"./compresed/{output_file}"
+
+        start_time = time.time()
+        lz77.compress_file(input_path, output_path)
+        end_time = time.time()
+
+        compression_time = end_time - start_time
+        compression_times[input_file] = compression_time
+        print(f"Compressed {input_file} in {compression_time:.2f} seconds")
+
+    # Decompression tests
+    print("\n=== Decompression Tests ===")
+    decompression_times = {}
+
+    for input_file, output_file in test_files:
+        input_path = f"./compresed/{output_file}"
+        output_path = f"./compresed/{input_file.replace('.txt', '__decompressed.txt')}"
+
+        start_time = time.time()
+        lz77.decompress_file(input_path, output_path)
+        end_time = time.time()
+
+        decompression_time = end_time - start_time
+        decompression_times[input_file] = decompression_time
+        print(f"Decompressed {output_file} in {decompression_time:.2f} seconds")
+
+    # Summary
+    print("\n=== Performance Summary ===")
+    print("\nCompression Times:")
+    for file, time_taken in compression_times.items():
+        print(f"{file}: {time_taken:.2f} seconds")
+
+    print("\nDecompression Times:")
+    for file, time_taken in decompression_times.items():
+        print(f"{file}: {time_taken:.2f} seconds")
+
+    print("\nAll tests completed successfully.")
