@@ -94,5 +94,9 @@ class LZ78Compressor:
             f.write(data)
 
 if __name__ == '__main__':
-    LZ78Compressor.compress_file('CSB_Pew_Bible_2nd_Printing.txt', 'compressed.bin')
-    LZ78Compressor.decompress_file('compressed.bin', 'test.txt')
+    LZ78Compressor.compress_file('./compression/pidmohylnyy-valerian-petrovych-misto76.txt', './compression/compressed_misto_lz78.bin')
+    LZ78Compressor.decompress_file('./compression/compressed_misto_lz78.bin', './compression/test1.txt')
+    LZ78Compressor.compress_file('./compression/large-file.json', './compression/compressed_json_lz78.bin')
+    LZ78Compressor.decompress_file('./compression/compressed_json_lz78.bin', './compression/test2.json')
+    LZ78Compressor.compress_file('./compression/customers-100000.csv', './compression/compressed_customers_100000_lz78.bin')
+    LZ78Compressor.decompress_file('./compression/compressed_customers_100000_lz78.bin', './compression/test3.csv')
