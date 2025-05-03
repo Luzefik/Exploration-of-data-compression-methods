@@ -4,6 +4,7 @@ data compression algorithm
 """
 import json
 import os
+import base64
 import mmap
 import heapq
 from collections import defaultdict
@@ -116,10 +117,7 @@ class HuffmanTree:
 
         with open(input_f, 'rb') as f:
             mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-            try:
-                data = mm[:].decode('utf-8')
-            except UnicodeDecodeError:
-                data = mm[:]
+            data = mm[:]
 
         if not self.root:
             self.char_frequency_dict = self.char_frequency(data)
@@ -135,13 +133,11 @@ class HuffmanTree:
         bit_lengths = len(res)
 
         with open(output_dict_f, 'w', encoding='utf-8') as f:
-            final_codes = defaultdict(str)
-            for k, v in self.res_codes.items():
-                final_codes[v] = k
+            final_codes = {v: k for k, v in self.res_codes.items()}
             final_data = {
                 "file_extension": f_extension,
                 "bit_lengths": bit_lengths,
-                "codes_dict": final_codes
+                "codes_dict": {k: base64.b64encode(bytes([v])).decode('ascii') for k, v in final_codes.items()}
             }
             json.dump(final_data, f)
 
@@ -171,7 +167,10 @@ class HuffmanTree:
         data = data.to01()[:real_bits]
         data = deque(data)
         f_extension = res_dict['file_extension']
-        res_dict = res_dict['codes_dict']
+        res_dict = {k: int.from_bytes(base64.b64decode(v), 'big') \
+        for k, v in res_dict['codes_dict'].items()}
+
+
         output_f = f"decompressed{f_extension}"
         decoded_data = []
         curr_code = ''
@@ -183,9 +182,9 @@ class HuffmanTree:
                 decoded_data.append(res_dict[curr_code])
                 curr_code = ''
 
-        if f_extension not in ['.jpg', '.bin', '.png']:
+        if f_extension in ['.txt', '.json', '.csv']:
             with open(output_f, 'w', encoding='utf-8') as f:
-                f.write(''.join(c for c in decoded_data))
+                f.write(''.join(str(c) for c in decoded_data))
         else:
             with open(output_f, 'wb') as f:
                 f.write(bytes(decoded_data))
