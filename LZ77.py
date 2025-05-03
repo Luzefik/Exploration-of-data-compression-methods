@@ -92,7 +92,8 @@ class LZ77:
         self, data: bytes, current_position: int, hash_table: dict
     ) -> tuple[int, int] | None:
         """
-        Find the longest match in the search window using a hash table.
+        Find the longest match in the search window using a hash table,
+        with integrated cleanup of stale candidate positions.
         """
         end_of_buffer = min(current_position + self.lookahead_buffer_size, len(data))
 
@@ -106,42 +107,57 @@ class LZ77:
         # Update hash table with the current substring
         if current_position >= 2:  # Ensure we have at least 3 bytes to hash
             substring = data[current_position - 2 : current_position + 1]
-            hash_key = hash(substring)
-            if hash_key not in hash_table:
-                hash_table[hash_key] = []
-            hash_table[hash_key].append(current_position - 2)
+            hash_key_to_add = hash(substring)
+            if hash_key_to_add not in hash_table:
+                hash_table[hash_key_to_add] = []
+            hash_table[hash_key_to_add].append(current_position - 2)
 
         # Get the current substring to match
         if current_position + 2 < len(data):
             current_substring = data[current_position : current_position + 3]
-            hash_key = hash(current_substring)
+            hash_key_to_find = hash(current_substring)
 
             # Check candidate positions from the hash table
-            if hash_key in hash_table:
-                for candidate_position in hash_table[hash_key]:
-                    # Only consider candidates within the window
-                    if candidate_position < current_position - self.window_size:
-                        continue
-                    distance = current_position - candidate_position
-                    # Strict window enforcement
-                    if distance < 1 or distance > min(
-                        self.window_size, current_position
-                    ):
-                        continue
+            if hash_key_to_find in hash_table:
+                # Determine the minimum valid candidate position
+                min_valid_candidate_pos = current_position - (self.window_size - 1)
+                if min_valid_candidate_pos < 0:
+                    min_valid_candidate_pos = 0
 
-                    match_length = 0
-                    while (
-                        current_position + match_length < len(data)
-                        and candidate_position + match_length < current_position
-                        and match_length < self.lookahead_buffer_size
-                        and data[candidate_position + match_length]
-                        == data[current_position + match_length]
-                    ):
-                        match_length += 1
+                # Get the list of candidates and filter out stale positions
+                candidate_list = hash_table[hash_key_to_find]
+                valid_candidates = [pos for pos in candidate_list if pos >= min_valid_candidate_pos]
 
-                    if match_length > best_match_length:
-                        best_match_length = match_length
-                        best_match_distance = distance
+                # Update the hash table entry
+                if not valid_candidates:
+                    del hash_table[hash_key_to_find]
+                else:
+                    hash_table[hash_key_to_find] = valid_candidates
+
+                    # Iterate over valid candidates to find the best match
+                    for candidate_position in valid_candidates:
+                        distance = current_position - candidate_position
+
+                        # Check if distance is valid
+                        if distance < 1:
+                            continue
+
+                        match_length = 0
+                        while (
+                            current_position + match_length < len(data)
+                            and candidate_position + match_length < current_position
+                            and match_length < self.lookahead_buffer_size
+                            and data[candidate_position + match_length]
+                            == data[current_position + match_length]
+                        ):
+                            match_length += 1
+
+                        if match_length > best_match_length:
+                            best_match_distance = distance
+                            best_match_length = match_length
+                            # Early exit if maximum length is found
+                            if best_match_length == self.lookahead_buffer_size:
+                                break
 
         if best_match_length >= 3:  # Only encode matches of length 3 or more
             return (best_match_distance, best_match_length)
@@ -330,13 +346,3 @@ class LZ77:
             fd.write(output_buffer)
 
         return output_buffer
-
-
-# if __name__ == "__main__":
-#     lz77 = LZ77()
-#     lz77.compress(
-#         "pidmohylnyy-valerian-petrovych-misto76.txt",
-#         "exampidmohylnyy-valerian-petrovych-misto76ple.lz77",
-#         verbose=True,
-#         deflate=True,
-#     )

@@ -648,39 +648,3 @@ class Deflate:
             current_length = length
 
         return decode_tree
-
-
-if __name__ == "__main__":
-    import time
-
-    start_time = time.perf_counter()
-
-    i_belive_it_works = Deflate()
-
-    i_belive_it_works.compress_file(
-        "customers-100.csv",
-        output_file="output-file-CSV.deflate",
-        verbose=True,
-        bfinal=1,
-    )
-    i_belive_it_works.decompress_file(
-        "output-file-CSV.deflate",
-        output_file="ТИЗМОЖЕШ-file-CSV.csv",
-        verbose=True,
-    )
-
-    # i_belive_it_works.compress_file(
-    #     "pidmohylnyy-valerian-petrovych-misto76.txt",
-    #     output_file="output-file-2.deflate",
-    #     verbose=True,
-    #     bfinal=1,
-    # )
-    i_belive_it_works.decompress_file(
-        "output-file-2.deflate",
-        output_file="БУДЬЛАСКА_____output-file-2.txt",
-        verbose=True,
-    )
-
-    end_time = time.perf_counter()
-    elapsed_time = end_time - start_time
-    print(f"Elapsed time: {elapsed_time:.6f} seconds")

@@ -1,5 +1,4 @@
 import os
-import shutil
 import time
 from pathlib import Path
 
@@ -144,21 +143,14 @@ class TestDeflate:
             "Text files": [
                 "pidmohylnyy-valerian-petrovych-misto76.txt",
                 "biblija.txt",
-                # "CSB_Pew_Bible_2nd_Printing.txt"
+                "CSB_Pew_Bible_2nd_Printing.txt"
             ],
             "CSV files": [
-                "customers-100.csv",
-                # "customers-100000.csv",
-                # "customers-2000000.csv"
+                "customers-100000.csv",
             ],
             "JSON files": [
-                # "large-file.json"
-            ],
-            "Image files": [
-                "SamplePNGImage_100kbmb.png",
-                # "SamplePNGImage_1mbmb.png",
-                # "SamplePNGImage_10mbmb.png"
-            ],
+                "large-file.json"
+            ]
         }
 
         results = []
