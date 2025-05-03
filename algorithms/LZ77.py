@@ -97,7 +97,7 @@ class LZ77:
         return None
 
     def compress_file(
-        self, input_file: str, output_file: str, verbose: bool = False
+        self, input_file: str, verbose: bool = False,  output_file: str = 'compressed_lz77.bin'
     ) -> bitarray:
         """
         Compresses the input file using the LZ77 algorithm with hash-based indexing.
@@ -167,7 +167,8 @@ class LZ77:
 
         return output_buffer
 
-    def decompress_file(self, input_file: str, output_file: str = None) -> bytearray:
+    def decompress_file(self, input_file: str = 'compressed_lz77.bin', \
+        output_file: str = 'decompressed_lz77') -> bytearray:
         """
         Decompresses the input file using the LZ77 algorithm.
         """
@@ -233,69 +234,69 @@ class LZ77:
         return output_buffer
 
 
-if __name__ == "__main__":
-    import time
+# if __name__ == "__main__":
+#     import time
 
-    lz77 = LZ77()
+#     lz77 = LZ77()
 
-    # Test files
-    test_files = [
-        # Literature
-        ("customers-100000.csv", "customers-100000.lz77"),
-        ("large-file.json", "large-file.lz77"),
-        ("biblija.txt", "biblija.lz77"),
-        # ("CSB_Pew_Bible_2nd_Printing.txt", "CSB_Pew_Bible_2nd_Printing.lz77"),
-        # ("flober-hiustav-pani-bovari4172.txt", "flober-hiustav-pani-bovari4172.lz77"),
-        ("harrypotter.txt", "harrypotter.lz77"),
-        # ("ivanychuk-roman-ivanovych-malvy1004.txt", "ivanychuk-roman-ivanovych-malvy1004.lz77"),
-        ("pidmohylnyy-valerian-petrovych-misto76.txt", "pidmohylnyy-valerian-petrovych-misto76.lz77"),
+#     # Test files
+#     test_files = [
+#         # Literature
+#         ("customers-100000.csv", "customers-100000.lz77"),
+#         ("large-file.json", "large-file.lz77"),
+#         ("biblija.txt", "biblija.lz77"),
+#         # ("CSB_Pew_Bible_2nd_Printing.txt", "CSB_Pew_Bible_2nd_Printing.lz77"),
+#         # ("flober-hiustav-pani-bovari4172.txt", "flober-hiustav-pani-bovari4172.lz77"),
+#         ("harrypotter.txt", "harrypotter.lz77"),
+#         # ("ivanychuk-roman-ivanovych-malvy1004.txt", "ivanychuk-roman-ivanovych-malvy1004.lz77"),
+#         ("pidmohylnyy-valerian-petrovych-misto76.txt", "pidmohylnyy-valerian-petrovych-misto76.lz77"),
 
-        # Educational
-        # ("Ekonomika_Instruktsiia_z_vykorystannia.txt", "Ekonomika_Instruktsiia_z_vykorystannia.lz77"),
-        # ("Frikonomika_Zvorotnyi_bik_usoho_na_sviti.txt", "Frikonomika_Zvorotnyi_bik_usoho_na_sviti.lz77"),
-        # ("LogicKozachenko2022.txt", "LogicKozachenko2022.lz77")
-    ]
+#         # Educational
+#         # ("Ekonomika_Instruktsiia_z_vykorystannia.txt", "Ekonomika_Instruktsiia_z_vykorystannia.lz77"),
+#         # ("Frikonomika_Zvorotnyi_bik_usoho_na_sviti.txt", "Frikonomika_Zvorotnyi_bik_usoho_na_sviti.lz77"),
+#         # ("LogicKozachenko2022.txt", "LogicKozachenko2022.lz77")
+#     ]
 
-    # Compression tests
-    print("\n=== Compression Tests ===")
-    compression_times = {}
+#     # Compression tests
+#     print("\n=== Compression Tests ===")
+#     compression_times = {}
 
-    for input_file, output_file in test_files:
-        input_path = f"./compression/{input_file}"
-        output_path = f"./compresed/{output_file}"
+#     for input_file, output_file in test_files:
+#         input_path = f"./compression/{input_file}"
+#         output_path = f"./compresed/{output_file}"
 
-        start_time = time.time()
-        lz77.compress_file(input_path, output_path)
-        end_time = time.time()
+#         start_time = time.time()
+#         lz77.compress_file(input_path, output_path)
+#         end_time = time.time()
 
-        compression_time = end_time - start_time
-        compression_times[input_file] = compression_time
-        print(f"Compressed {input_file} in {compression_time:.2f} seconds")
+#         compression_time = end_time - start_time
+#         compression_times[input_file] = compression_time
+#         print(f"Compressed {input_file} in {compression_time:.2f} seconds")
 
-    # Decompression tests
-    print("\n=== Decompression Tests ===")
-    decompression_times = {}
+#     # Decompression tests
+#     print("\n=== Decompression Tests ===")
+#     decompression_times = {}
 
-    for input_file, output_file in test_files:
-        input_path = f"./compresed/{output_file}"
-        output_path = f"./compresed/{input_file.replace('.txt', '__decompressed.txt')}"
+#     for input_file, output_file in test_files:
+#         input_path = f"./compresed/{output_file}"
+#         output_path = f"./compresed/{input_file.replace('.txt', '__decompressed.txt')}"
 
-        start_time = time.time()
-        lz77.decompress_file(input_path, output_path)
-        end_time = time.time()
+#         start_time = time.time()
+#         lz77.decompress_file(input_path, output_path)
+#         end_time = time.time()
 
-        decompression_time = end_time - start_time
-        decompression_times[input_file] = decompression_time
-        print(f"Decompressed {output_file} in {decompression_time:.2f} seconds")
+#         decompression_time = end_time - start_time
+#         decompression_times[input_file] = decompression_time
+#         print(f"Decompressed {output_file} in {decompression_time:.2f} seconds")
 
-    # Summary
-    print("\n=== Performance Summary ===")
-    print("\nCompression Times:")
-    for file, time_taken in compression_times.items():
-        print(f"{file}: {time_taken:.2f} seconds")
+#     # Summary
+#     print("\n=== Performance Summary ===")
+#     print("\nCompression Times:")
+#     for file, time_taken in compression_times.items():
+#         print(f"{file}: {time_taken:.2f} seconds")
 
-    print("\nDecompression Times:")
-    for file, time_taken in decompression_times.items():
-        print(f"{file}: {time_taken:.2f} seconds")
+#     print("\nDecompression Times:")
+#     for file, time_taken in decompression_times.items():
+#         print(f"{file}: {time_taken:.2f} seconds")
 
-    print("\nAll tests completed successfully.")
+#     print("\nAll tests completed successfully.")

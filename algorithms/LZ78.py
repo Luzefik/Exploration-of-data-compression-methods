@@ -50,7 +50,7 @@ class LZ78Compressor:
         return bytes(result)
 
     @staticmethod
-    def compress_file(input_path: str, output_path: str):
+    def compress_file(input_path: str, output_path: str='compressed_lz78.bin'):
         """
         Reads a file as binary, compresses with LZ78, and writes a binary stream.
         """
@@ -67,7 +67,8 @@ class LZ78Compressor:
                 f.write(byte)
 
     @staticmethod
-    def decompress_file(input_path: str, output_path: str):
+    def decompress_file(input_path: str='compressed_lz78.bin', \
+        output_path: str = 'decompressed_lz78'):
         """
         Reads a binary LZ78 stream, decompresses to bytes, and writes to file.
         """
@@ -93,10 +94,10 @@ class LZ78Compressor:
         with open(output_path, 'wb') as f:
             f.write(data)
 
-if __name__ == '__main__':
-    LZ78Compressor.compress_file('./compression/pidmohylnyy-valerian-petrovych-misto76.txt', './compression/compressed_misto_lz78.bin')
-    LZ78Compressor.decompress_file('./compression/compressed_misto_lz78.bin', './compression/test1.txt')
-    LZ78Compressor.compress_file('./compression/large-file.json', './compression/compressed_json_lz78.bin')
-    LZ78Compressor.decompress_file('./compression/compressed_json_lz78.bin', './compression/test2.json')
-    LZ78Compressor.compress_file('./compression/customers-100000.csv', './compression/compressed_customers_100000_lz78.bin')
-    LZ78Compressor.decompress_file('./compression/compressed_customers_100000_lz78.bin', './compression/test3.csv')
+# if __name__ == '__main__':
+#     LZ78Compressor.compress_file('./compression/pidmohylnyy-valerian-petrovych-misto76.txt', './compression/compressed_misto_lz78.bin')
+#     LZ78Compressor.decompress_file('./compression/compressed_misto_lz78.bin', './compression/test1.txt')
+#     LZ78Compressor.compress_file('./compression/large-file.json', './compression/compressed_json_lz78.bin')
+#     LZ78Compressor.decompress_file('./compression/compressed_json_lz78.bin', './compression/test2.json')
+#     LZ78Compressor.compress_file('./compression/customers-100000.csv', './compression/compressed_customers_100000_lz78.bin')
+#     LZ78Compressor.decompress_file('./compression/compressed_customers_100000_lz78.bin', './compression/test3.csv')

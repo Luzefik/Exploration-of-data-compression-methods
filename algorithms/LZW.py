@@ -53,7 +53,7 @@ class LZWCompressor:
         return bytes(result)
 
     @staticmethod
-    def compress_file(input_path, output_path):
+    def compress_file(input_path, output_path: str = 'compressed_lzw.bin'):
         """Compress a file using LZW and save it in binary format."""
         with open(input_path, 'rb') as f:
             data = f.read()
@@ -63,7 +63,7 @@ class LZWCompressor:
                 f.write(num.to_bytes(4, byteorder='big'))
 
     @staticmethod
-    def decompress_file(input_path, output_path):
+    def decompress_file(input_path: str = 'compressed_lzw.bin', output_path: str = 'decompressed_lzw'):
         """Decompress a binary file using LZW and save it."""
         with open(input_path, 'rb') as f:
             compressed = []
