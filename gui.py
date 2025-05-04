@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
 
             acceptable_extensions = ['.jpg', '.tif', '.png', '.gif', \
             '.flac', '.mp3', '.flac', '.wav', '.mpeg', '.txt', \
-            '.csv', '.json', '.jpeg', '.bmp', '.avi', '.mp4']
+            '.csv', '.json', '.jpeg', '.bmp', '.avi', '.mp4', '.bin']
             if file_ext not in acceptable_extensions:
                 QMessageBox.warning(self, "Unsupported File Format",\
                     f"This file{file_ext} is not supported.")
