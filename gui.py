@@ -8,6 +8,7 @@ from algorithms.huffman_coding import HuffmanTree
 from algorithms.LZW import LZWCompressor
 from algorithms.LZ78 import LZ78Compressor
 from algorithms.LZ77 import LZ77
+from algorithms.deflate import Deflate
 
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
@@ -203,7 +204,7 @@ class MainWindow(QMainWindow):
             return
 
         algorithms_to_call = {'Huffman': HuffmanTree(), 'LZW': LZWCompressor(), \
-        'LZ78': LZ78Compressor(), 'LZ77': LZ77()}
+        'LZ78': LZ78Compressor(), 'LZ77': LZ77(), 'Deflate': Deflate()}
 
         algorithm = self.algorithms_box.currentText()
         if algorithm in algorithms_to_call:
@@ -229,7 +230,7 @@ class MainWindow(QMainWindow):
             return
 
         algorithms_to_call = {'Huffman': HuffmanTree(), 'LZW': LZWCompressor(), \
-        'LZ78': LZ78Compressor(), 'LZ77': LZ77()}
+        'LZ78': LZ78Compressor(), 'LZ77': LZ77(), 'Deflate': Deflate()}
         algorithm = self.algorithms_box.currentText()
 
         if algorithm in algorithms_to_call:
