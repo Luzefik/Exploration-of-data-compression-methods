@@ -7,7 +7,7 @@ class LZWCompressor:
     """
     A class for LZW compression and decompression.
     """
-
+    file_extension = ""
     @staticmethod
     def compress(data: bytes):
         """LZW compression for bytes."""
@@ -64,10 +64,11 @@ class LZWCompressor:
         with open(output_path, "wb") as f:
             for num in compressed:
                 f.write(num.to_bytes(4, byteorder="big"))
+        LZWCompressor.file_extension = input_path.split(".")[-1]
 
     @staticmethod
     def decompress_file(
-        input_path: str = "compressed_lzw.bin", output_path: str = "decompressed_lzw"
+        input_path: str = "compressed_lzw.bin"
     ):
         """Decompress a binary file using LZW and save it."""
         with open(input_path, "rb") as f:
@@ -75,10 +76,13 @@ class LZWCompressor:
             while byte := f.read(4):
                 compressed.append(int.from_bytes(byte, byteorder="big"))
         decompressed = LZWCompressor.decompress(compressed)
+        if LZWCompressor.file_extension == "":
+            raise ValueError("File extension not set. Please compress a file first.")
+        output_path = f"decompressed.{LZWCompressor.file_extension}"
         with open(output_path, "wb") as f:
             f.write(decompressed)
 
 
 # Example usage:
-# LZWCompressor.compress_file('pidmohylnyy-valerian-petrovych-misto76.docx', 'compressed.bin')
-# LZWCompressor.decompress_file('compressed.bin', 'decompressed.docx')
+# LZWCompressor.compress_file('large-file.json', 'compressed.bin')
+# LZWCompressor.decompress_file('compressed.bin')
