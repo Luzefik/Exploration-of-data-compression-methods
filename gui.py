@@ -8,7 +8,8 @@ from algorithms.huffman_coding import HuffmanTree
 from algorithms.LZW import LZWCompressor
 from algorithms.LZ78 import LZ78Compressor
 from algorithms.LZ77 import LZ77
-from algorithms.deflate import Deflate
+from algorithms.RLE import RLECompressor
+# from algorithms.deflate import Deflate
 
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
@@ -97,7 +98,7 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.choose_alg)
 
         self.algorithms_box = QComboBox()
-        self.algorithms_box.addItems(['Huffman', 'LZW', 'Deflate', 'LZ77', 'LZ78'])
+        self.algorithms_box.addItems(['Huffman', 'LZW', 'Deflate', 'LZ77', 'LZ78', 'RLE'])
 
         self.algorithms_box.setStyleSheet("""
             QComboBox {
@@ -188,7 +189,7 @@ class MainWindow(QMainWindow):
 
             acceptable_extensions = ['.jpg', '.tif', '.png', '.gif', \
             '.flac', '.mp3', '.flac', '.wav', '.mpeg', '.txt', \
-            '.csv', '.json', '.jpeg', '.bmp', '.avi', '.mp4', '.bin']
+            '.csv', '.json', '.jpeg', '.bmp', '.avi', '.mp4', '.bin', '.gif']
             if file_ext not in acceptable_extensions:
                 QMessageBox.warning(self, "Unsupported File Format",\
                     f"This file{file_ext} is not supported.")
@@ -204,7 +205,7 @@ class MainWindow(QMainWindow):
             return
 
         algorithms_to_call = {'Huffman': HuffmanTree(), 'LZW': LZWCompressor(), \
-        'LZ78': LZ78Compressor(), 'LZ77': LZ77(), 'Deflate': Deflate()}
+        'LZ78': LZ78Compressor(), 'LZ77': LZ77(), 'RLE': RLECompressor()}
 
         algorithm = self.algorithms_box.currentText()
         if algorithm in algorithms_to_call:
@@ -230,7 +231,7 @@ class MainWindow(QMainWindow):
             return
 
         algorithms_to_call = {'Huffman': HuffmanTree(), 'LZW': LZWCompressor(), \
-        'LZ78': LZ78Compressor(), 'LZ77': LZ77(), 'Deflate': Deflate()}
+        'LZ78': LZ78Compressor(), 'LZ77': LZ77(), 'RLE': RLECompressor()}
         algorithm = self.algorithms_box.currentText()
 
         if algorithm in algorithms_to_call:
