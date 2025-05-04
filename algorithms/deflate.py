@@ -83,7 +83,7 @@ class Deflate:
     def compress_file(
         self,
         input_file: str,
-        output_file: str = None,
+        output_file: str = 'compressed_deflate.deflate',
         verbose: bool = False,
         bfinal: int = 1,
     ) -> bitarray:
@@ -252,7 +252,7 @@ class Deflate:
         return writer.get_bitarray()
 
     def decompress_file(
-        self, input_file: str, output_file: str = None, verbose: bool = False
+        self, input_file: 'compressed_deflate.deflate', output_file: 'decompressed_deflate', verbose: bool = False
     ) -> bytes:
         """
         Декомпресує файл у форматі DEFLATE.

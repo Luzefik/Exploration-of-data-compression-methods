@@ -39,7 +39,7 @@ class RLECompressor:
         return bytes(result)
 
     @staticmethod
-    def compress_file(input_path: str, output_path: str):
+    def compress_file(input_path: str, output_path: str = 'compressed_rle.bin'):
         """
         Reads a file as binary, compresses with RLE, and writes a binary stream.
         """
@@ -52,7 +52,7 @@ class RLECompressor:
                 f.write(byte)
 
     @staticmethod
-    def decompress_file(input_path: str, output_path: str):
+    def decompress_file(input_path: str = 'compressed_rle.bin', output_path: str = 'decompressed_rle'):
         """
         Reads a binary RLE stream, decompresses to bytes, and writes to file.
         """
