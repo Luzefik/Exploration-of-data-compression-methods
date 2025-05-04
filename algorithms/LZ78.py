@@ -1,6 +1,5 @@
 """LZ78 Compression and Decompression"""
 
-
 class LZ78Compressor:
     """A class for LZ78 compression and decompression"""
 
