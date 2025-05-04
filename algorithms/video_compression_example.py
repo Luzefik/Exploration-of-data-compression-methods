@@ -1,5 +1,7 @@
-import cv2
 import os
+
+import cv2
+
 
 # Функція для витягання кадрів з відео
 def extract_frames(video_path, output_folder="frames"):
@@ -13,7 +15,7 @@ def extract_frames(video_path, output_folder="frames"):
 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     print(f"Загальна кількість кадрів: {total_frames}")
-    
+
     for i in range(total_frames):
         ret, frame = cap.read()
         if ret:
@@ -21,6 +23,7 @@ def extract_frames(video_path, output_folder="frames"):
 
     cap.release()
     print(f"[✓] Витягнуто {total_frames} кадрів до папки {output_folder}/")
+
 
 # Алгоритм стиснення LZW
 def lzw_compress(data):
@@ -45,6 +48,7 @@ def lzw_compress(data):
 
     return result
 
+
 # Функція для стиснення всіх кадрів
 def compress_all_frames(folder="frames"):
     for fname in sorted(os.listdir(folder)):
@@ -61,6 +65,7 @@ def compress_all_frames(folder="frames"):
 
     print("[✓] Всі кадри стиснуті за допомогою LZW.")
 
+
 # Функція для декомпресії LZW
 def decompress_all_frames(folder="frames"):
     for fname in sorted(os.listdir(folder)):
@@ -69,7 +74,9 @@ def decompress_all_frames(folder="frames"):
                 data = f.read()
 
             # Розбити на коди по 3 байти
-            codes = [int.from_bytes(data[i:i+3], "big") for i in range(0, len(data), 3)]
+            codes = [
+                int.from_bytes(data[i : i + 3], "big") for i in range(0, len(data), 3)
+            ]
 
             # LZW декомпресія
             dictionary = {i: bytes([i]) for i in range(256)}
@@ -99,8 +106,14 @@ def decompress_all_frames(folder="frames"):
 
     print("[✓] Всі .lzw файли розпаковані до .bmp")
 
+
 # Функція для відновлення відео з кадрів
-def recreate_video_from_frames(input_folder="frames", output_video="output_video.mp4", fps=30, resolution=(1920, 1080)):
+def recreate_video_from_frames(
+    input_folder="frames",
+    output_video="output_video.mp4",
+    fps=30,
+    resolution=(1920, 1080),
+):
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(output_video, fourcc, fps, resolution)
 
@@ -112,10 +125,11 @@ def recreate_video_from_frames(input_folder="frames", output_video="output_video
     out.release()
     print(f"[✓] Відео відновлене до {output_video}")
 
+
 # Основна частина коду
 if __name__ == "__main__":
     video_path = "example.mp4"  # Шлях до відео
-    frames_folder = "frames"    # Папка для кадрів
+    frames_folder = "frames"  # Папка для кадрів
 
     # 1. Витягуємо кадри з відео
     extract_frames(video_path, frames_folder)
@@ -127,4 +141,9 @@ if __name__ == "__main__":
     decompress_all_frames(frames_folder)
 
     # 4. Відновлюємо відео з розпакованих кадрів
-    recreate_video_from_frames(input_folder=frames_folder, output_video="restored_video.mp4", fps=30, resolution=(1920, 1080))
+    recreate_video_from_frames(
+        input_folder=frames_folder,
+        output_video="restored_video.mp4",
+        fps=30,
+        resolution=(1920, 1080),
+    )

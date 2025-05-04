@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 # Test folder
-test/
+# test/
 
 # C extensions
 *.so
@@ -179,25 +179,24 @@ cython_debug/
 .pypirc
 
 .vscode
-*.pdf
-*.bin
-*.txt
-*.lz77
-*.json
-*.csv
-*.log
-*.pickle
-*.pkl
-*.h5
-*.hdf5
-*.hdf
-*.deflate
-*.zip
-*.tar
-*.tar.gz
-*.tar.bz2
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.test_results
+# *.pdf
+# *.bin
+# *.txt
+# *.lz77
+# *.json
+# *.csv
+# *.log
+# *.pickle
+# *.pkl
+# *.h5
+# *.hdf5
+# *.hdf
+# *.deflate
+# *.zip
+# *.tar
+# *.tar.gz
+# *.tar.bz2
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif

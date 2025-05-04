@@ -61,7 +61,9 @@ class LZ77:
                 min_valid_candidate_pos = current_position - (self.window_size - 1)
 
                 # Create a new list containing only valid candidates
-                valid_candidates = [pos for pos in candidate_list if pos >= min_valid_candidate_pos]
+                valid_candidates = [
+                    pos for pos in candidate_list if pos >= min_valid_candidate_pos
+                ]
 
                 # Update the entry in the hash table
                 if not valid_candidates:
@@ -97,7 +99,10 @@ class LZ77:
         return None
 
     def compress_file(
-        self, input_file: str, verbose: bool = False,  output_file: str = 'compressed_lz77.bin'
+        self,
+        input_file: str,
+        verbose: bool = False,
+        output_file: str = "compressed_lz77.bin",
     ) -> bitarray:
         """
         Compresses the input file using the LZ77 algorithm with hash-based indexing.
@@ -109,7 +114,9 @@ class LZ77:
 
         with open(input_file, "r+b") as f:
             buf = mmap.mmap(f.fileno(), length=0, access=mmap.ACCESS_READ)
-            data = memoryview(buf)  # Use memoryview instead of copying the entire buffer
+            data = memoryview(
+                buf
+            )  # Use memoryview instead of copying the entire buffer
 
         output_buffer = bitarray(endian="big")
         i = 0
@@ -167,8 +174,9 @@ class LZ77:
 
         return output_buffer
 
-    def decompress_file(self, input_file: str = 'compressed_lz77.bin', \
-        output_file: str = None) -> bytearray:
+    def decompress_file(
+        self, input_file: str = "compressed_lz77.bin", output_file: str = None
+    ) -> bytearray:
         """
         Decompresses the input file using the LZ77 algorithm.
         """

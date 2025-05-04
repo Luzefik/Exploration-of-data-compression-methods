@@ -1,5 +1,6 @@
 """LZ78 Compression and Decompression"""
 
+
 class LZ78Compressor:
     """A class for LZ78 compression and decompression"""
 
@@ -11,7 +12,7 @@ class LZ78Compressor:
         """
         dictionary = {}
         result = []
-        current = b''
+        current = b""
         dict_size = 1
 
         for b in data:
@@ -24,10 +25,10 @@ class LZ78Compressor:
                 result.append((index, bytes([b])))
                 dictionary[seq] = dict_size
                 dict_size += 1
-                current = b''
+                current = b""
 
         if current:
-            result.append((dictionary[current], b''))
+            result.append((dictionary[current], b""))
 
         return result
 
@@ -37,7 +38,7 @@ class LZ78Compressor:
         Decompresses a list of (index, byte) pairs using the LZ78 algorithm.
         Returns the reconstructed bytes.
         """
-        dictionary = {0: b''}
+        dictionary = {0: b""}
         result = bytearray()
         dict_size = 1
 
@@ -50,49 +51,51 @@ class LZ78Compressor:
         return bytes(result)
 
     @staticmethod
-    def compress_file(input_path: str, output_path: str='compressed_lz78.bin'):
+    def compress_file(input_path: str, output_path: str = "compressed_lz78.bin"):
         """
         Reads a file as binary, compresses with LZ78, and writes a binary stream.
         """
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             data = f.read()
 
         pairs = LZ78Compressor.compress(data)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             for idx, byte in pairs:
-                f.write(idx.to_bytes(4, 'big'))
+                f.write(idx.to_bytes(4, "big"))
                 length = len(byte)
-                f.write(length.to_bytes(1, 'big'))
+                f.write(length.to_bytes(1, "big"))
                 f.write(byte)
 
     @staticmethod
-    def decompress_file(input_path: str='compressed_lz78.bin', \
-        output_path: str = 'decompressed_lz78'):
+    def decompress_file(
+        input_path: str = "compressed_lz78.bin", output_path: str = "decompressed_lz78"
+    ):
         """
         Reads a binary LZ78 stream, decompresses to bytes, and writes to file.
         """
         pairs = []
 
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             blob = f.read()
 
         pos = 0
         n = len(blob)
 
         while pos < n:
-            idx = int.from_bytes(blob[pos:pos+4], 'big')
+            idx = int.from_bytes(blob[pos : pos + 4], "big")
             pos += 4
             length = blob[pos]
             pos += 1
-            byte = blob[pos:pos+length]
+            byte = blob[pos : pos + length]
             pos += length
             pairs.append((idx, byte))
 
         data = LZ78Compressor.decompress(pairs)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(data)
+
 
 # if __name__ == '__main__':
 #     LZ78Compressor.compress_file('./compression/pidmohylnyy-valerian-petrovych-misto76.txt', './compression/compressed_misto_lz78.bin')
