@@ -182,9 +182,5 @@ class HuffmanTree:
                 decoded_data.append(res_dict[curr_code])
                 curr_code = ''
 
-        if f_extension in ['.txt', '.json', '.csv']:
-            with open(output_f, 'w', encoding='utf-8') as f:
-                f.write(''.join(str(c) for c in decoded_data))
-        else:
-            with open(output_f, 'wb') as f:
-                f.write(bytes(decoded_data))
+        with open(output_f, 'wb') as f:
+            f.write(bytes(decoded_data))
