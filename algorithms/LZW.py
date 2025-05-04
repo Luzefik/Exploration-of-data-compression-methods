@@ -78,7 +78,7 @@ class LZWCompressor:
         decompressed = LZWCompressor.decompress(compressed)
         if LZWCompressor.file_extension == "":
             raise ValueError("File extension not set. Please compress a file first.")
-        output_path = f"decompressed.{LZWCompressor.file_extension}"
+        output_path = f"decompressed_lzw.{LZWCompressor.file_extension}"
         with open(output_path, "wb") as f:
             f.write(decompressed)
 
