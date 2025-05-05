@@ -90,6 +90,12 @@ class Deflate:
         if output_file is None:
             output_file = os.path.splitext(input_file)[0] + ".deflate"
 
+        # Get file extension and prepare header
+        _, ext = os.path.splitext(input_file)
+        ext = ext.lstrip(".")  # Remove the dot from the extension
+        ext_bytes = ext.encode("utf-8")
+        ext_len = len(ext_bytes)
+
         # 1) Get lists from LZ77
         symbol_list, length_extra_bits, distance_list, distance_extra_bits = (
             self.lz77.compress(input_file, verbose=verbose, deflate=True)
@@ -201,6 +207,12 @@ class Deflate:
 
         # 3) Process each block
         writer = BitWriter()
+
+        # Write file extension header
+        writer.write_bits_lsb(ext_len, 8)  # Write extension length
+        for byte in ext_bytes:
+            writer.write_bits_lsb(byte, 8)  # Write extension bytes
+
         for block_index, block in enumerate(blocks):
             # Determine if this is the final block
             is_final = bfinal == 1 and block_index == len(blocks) - 1
@@ -252,7 +264,7 @@ class Deflate:
         return writer.get_bitarray()
 
     def decompress_file(
-        self, input_file: 'compressed_deflate.deflate', output_file: 'decompressed_deflate', verbose: bool = False
+        self, input_file: 'compressed_deflate.deflate', output_file = None, verbose: bool = False
     ) -> bytes:
         """
         Декомпресує файл у форматі DEFLATE.
@@ -262,11 +274,24 @@ class Deflate:
         :param verbose: виводити додаткову інформацію
         :return: розпаковані байти
         """
-        if output_file is None:
-            output_file = os.path.splitext(input_file)[0] + ".decoded"
+        # if output_file is None:
+        #     output_file = os.path.splitext(input_file)[0] + ".decoded"
 
         reader = BitReader(input_file)
         decoded_data = bytearray()
+
+        # Read file extension header
+        try:
+            ext_len = reader.read_bits_lsb(8)
+            ext_bytes = bytearray()
+            for _ in range(ext_len):
+                ext_bytes.append(reader.read_bits_lsb(8))
+            ext = ext_bytes.decode('utf-8')
+
+            if verbose:
+                print(f"Read file extension: {ext}")
+        except Exception as e:
+            raise ValueError(f"Failed to read file extension header: {str(e)}")
 
         # Декодування буде відбуватися доки не дійдемо до кінця файлу або до останнього блоку
         is_final_block = False
@@ -311,7 +336,14 @@ class Deflate:
                 # Якщо досягли кінця файлу, виходимо з циклу
                 break
 
-        # Записуємо результат у файл
+        # Записуємо результат у файл з правильною розширенням
+        if output_file is None:
+            output_file = os.path.splitext(input_file)[0] + f".{ext}"
+        else:
+            # Ensure output file has correct extension
+            base, _ = os.path.splitext(output_file)
+            output_file = f"{base}.{ext}"
+
         with open(output_file, "wb") as f:
             f.write(decoded_data)
 
@@ -646,3 +678,4 @@ class Deflate:
             current_length = length
 
         return decode_tree
+
