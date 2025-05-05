@@ -3,48 +3,58 @@ from bitarray import bitarray
 
 class BitWriter:
     """
-    Простий записувач бітів у потік bitarray з вирівнюванням до байта.
+    A class for writing bits to a bitarray stream with byte alignment support.
+    Provides methods for writing bits in both MSB and LSB order.
     """
 
-    def __init__(self):
-        self.bits = bitarray(endian="big")  # endian='big' важливий для tofile()
+    def __init__(self) -> None:
+        """Initialize a new BitWriter instance with an empty bitarray."""
+        self.bits = bitarray(endian="big")
 
-    def write_bits_msb(self, value: int, length: int):
+    def write_bits_msb(self, value: int, length: int) -> None:
         """
-        Записує length бітів зі значення value (старший біт першим, MSB first).
-        Використовується для кодів Хаффмана.
+        Write bits in MSB-first order (most significant bit first).
+        Used for Huffman codes.
+
+        Args:
+            value: Integer value to write
+            length: Number of bits to write
+
+        Raises:
+            ValueError: If length is negative
         """
         if length < 0:
-            raise ValueError("Довжина не може бути негативною")
+            raise ValueError("Length cannot be negative")
         if length == 0:
             return
-        # Переконуємось, що value не виходить за межі length біт
-        # value &= (1 << length) - 1
         for i in range(length - 1, -1, -1):
             self.bits.append((value >> i) & 1)
 
-    def write_bits_lsb(self, value: int, length: int):
+    def write_bits_lsb(self, value: int, length: int) -> None:
         """
-        Записує length бітів зі значення value (молодший біт першим, LSB first).
-        Використовується для заголовків, дод. бітів та інших полів.
+        Write bits in LSB-first order (least significant bit first).
+        Used for headers, extra bits, and other fields.
+
+        Args:
+            value: Integer value to write
+            length: Number of bits to write
+
+        Raises:
+            ValueError: If length is negative
         """
         if length < 0:
-            raise ValueError("Довжина не може бути негативною")
+            raise ValueError("Length cannot be negative")
         if length == 0:
             return
-        # Переконуємось, що value не виходить за межі length біт
-        # value &= (1 << length) - 1
         for i in range(length):
             self.bits.append((value >> i) & 1)
 
-    # Можна залишити старий метод як псевдонім для MSB, якщо зручно,
-    # або використовувати тільки нові два методи.
-    # def write_bits(self, value: int, length: int):
-    #     self.write_bits_msb(value, length)
-
-    def flush_to_file(self, filename: str):
+    def flush_to_file(self, filename: str) -> None:
         """
-        Додає нулі для вирівнювання до байта та записує у файл.
+        Write the bitarray to a file with byte alignment.
+
+        Args:
+            filename: Path to the output file
         """
         while len(self.bits) % 8 != 0:
             self.bits.append(0)
@@ -53,13 +63,14 @@ class BitWriter:
 
     def get_bitarray(self) -> bitarray:
         """
-        Повертає поточний стан бітового масиву (без вирівнювання).
+        Get the current state of the bit array without alignment.
+
+        Returns:
+            The current bit array
         """
         return self.bits
 
-    def byte_align(self):
-        """
-        Додає нулі до вирівнювання в байт (без запису в файл).
-        """
+    def byte_align(self) -> None:
+        """Add padding bits to achieve byte alignment."""
         while len(self.bits) % 8 != 0:
             self.bits.append(0)

@@ -1,5 +1,6 @@
 """RLE Compression and Decompression"""
 
+
 class RLECompressor:
     """A class for RLE compression and decompression on binary data."""
 
@@ -39,43 +40,41 @@ class RLECompressor:
         return bytes(result)
 
     @staticmethod
-    def compress_file(input_path: str, output_path: str = 'compressed_rle.bin'):
+    def compress_file(input_path: str, output_path: str = "compressed_rle.bin"):
         """
         Reads a file as binary, compresses with RLE, and writes a binary stream.
         """
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             data = f.read()
         runs = RLECompressor.compress(data)
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             for count, byte in runs:
-                f.write(count.to_bytes(4, 'big'))
+                f.write(count.to_bytes(4, "big"))
                 f.write(byte)
 
     @staticmethod
-    def decompress_file(input_path: str = 'compressed_rle.bin', output_path: str = 'decompressed_rle'):
+    def decompress_file(
+        input_path: str = "compressed_rle.bin", output_path: str = "decompressed_rle"
+    ):
         """
         Reads a binary RLE stream, decompresses to bytes, and writes to file.
         """
         runs = []
 
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             blob = f.read()
 
         pos = 0
         n = len(blob)
 
         while pos < n:
-            count = int.from_bytes(blob[pos:pos+4], 'big')
+            count = int.from_bytes(blob[pos : pos + 4], "big")
             pos += 4
-            byte = blob[pos:pos+1]
+            byte = blob[pos : pos + 1]
             pos += 1
             runs.append((count, byte))
 
         data = RLECompressor.decompress(runs)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(data)
-
-# if __name__ == '__main__':
-#     RLECompressor.compress_file('./compression/image1.bmp', './compression/compressed_image1_rle.bin')
-#     RLECompressor.decompress_file('./compression/compressed_image1_rle.bin', './compression/test1.bmp')

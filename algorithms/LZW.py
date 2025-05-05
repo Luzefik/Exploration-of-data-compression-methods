@@ -7,7 +7,9 @@ class LZWCompressor:
     """
     A class for LZW compression and decompression.
     """
+
     file_extension = ""
+
     @staticmethod
     def compress(data: bytes):
         """LZW compression for bytes."""
@@ -67,9 +69,7 @@ class LZWCompressor:
         LZWCompressor.file_extension = input_path.split(".")[-1]
 
     @staticmethod
-    def decompress_file(
-        input_path: str = "compressed_lzw.bin"
-    ):
+    def decompress_file(input_path: str = "compressed_lzw.bin"):
         """Decompress a binary file using LZW and save it."""
         with open(input_path, "rb") as f:
             compressed = []
