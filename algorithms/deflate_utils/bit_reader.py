@@ -1,5 +1,3 @@
-from collections import Counter
-
 from bitarray import bitarray
 
 
