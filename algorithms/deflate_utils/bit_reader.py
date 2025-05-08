@@ -1,5 +1,6 @@
-from collections import Counter
-
+"""
+Bit reader for DEFLATE
+"""
 from bitarray import bitarray
 
 

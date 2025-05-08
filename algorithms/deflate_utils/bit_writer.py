@@ -1,3 +1,6 @@
+"""
+Bit writer for DEFLATE
+"""
 from bitarray import bitarray
 
 
