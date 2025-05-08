@@ -158,7 +158,8 @@ class HuffmanTree:
 
     @staticmethod
     def decompress_file(
-        input_f="compressed_huffman.bin", input_dict_f="compressed_huffman_dict.json"
+        input_f="compressed_huffman.bin", input_dict_f="compressed_huffman_dict.json",
+        user_output_f = None
     ):
         """
         Function decodes data from given files using Huffman algorithm.
@@ -183,7 +184,10 @@ class HuffmanTree:
             for k, v in res_dict["codes_dict"].items()
         }
 
-        output_f = f"decompressed{f_extension}"
+        if user_output_f:
+            output_f = f'./res_decompression/decompressed_{user_output_f}{f_extension}'
+        else:
+            output_f = f"decompressed{f_extension}"
         decoded_data = []
         curr_code = ""
 

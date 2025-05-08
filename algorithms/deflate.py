@@ -134,7 +134,6 @@ class Deflate:
                     debug_tuples.append((sym, len_extra))
             else:
                 debug_tuples.append(None)
-        print(f"[DEBUG] First 20 LZ77->DEFLATE tuples: {debug_tuples}")
 
         if verbose:
             print(f"LZ77+Mapping produced:")

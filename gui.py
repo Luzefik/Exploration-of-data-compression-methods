@@ -200,6 +200,14 @@ class MainWindow(QMainWindow):
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         if dialog.exec():
             files = dialog.selectedFiles()
+            if len(files) > 1:
+                QMessageBox.warning(
+                    self,
+                    "Too many files",
+                    "Choose only one file at a time for compression.",
+                )
+                return
+
             self.selected_file = files[0]
             file_ext = os.path.splitext(self.selected_file)[1].lower()
             self.selected_file_size = os.stat(self.selected_file).st_size
@@ -262,7 +270,7 @@ class MainWindow(QMainWindow):
         round(self.selected_file_size / 1024, 2)} KB, now size is: {\
         round(self.compress_file_size/ 1024, 2)} KB'
         )
-        QMessageBox.information(self, "Success", f"File compressed using {algorithm}!")
+        QMessageBox.information(self, "Success", f"File was compressed using {algorithm}!")
 
     def decompress_file(self):
         """
