@@ -3,7 +3,6 @@ Bit writer for DEFLATE
 """
 from bitarray import bitarray
 
-
 class BitWriter:
     """
     A class for writing bits to a bitarray stream with byte alignment support.

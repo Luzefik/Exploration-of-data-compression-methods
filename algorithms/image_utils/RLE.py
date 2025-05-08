@@ -1,42 +1,56 @@
-"""RLE Compression and Decompression"""
+"""
+Run-Length Encoding (RLE) Compression Module
+"""
 
 
 class RLECompressor:
-    """A class for RLE compression and decompression on binary data."""
+    """Class for RLE compression and decompression"""
 
     @staticmethod
     def compress(data: bytes) -> list[tuple[int, bytes]]:
         """
-        Compresses bytes using RLE.
-        Returns a list of (count, byte) tuples.
+        Compress data using RLE.
+
+        Args:
+            data: Input data as bytes
+
+        Returns:
+            List of (count, value) tuples
         """
-        runs = []
-        current = data[0]
+        if not data:
+            return []
+
+        result = []
+        current_byte = data[0]
         count = 1
 
-        for b in data[1:]:
-            if b == current:
+        for byte in data[1:]:
+            if byte == current_byte and count < 255:
                 count += 1
             else:
-                runs.append((count, bytes([current])))
-                current = b
+                result.append((count, bytes([current_byte])))
+                current_byte = byte
                 count = 1
 
-        runs.append((count, bytes([current])))
+        # Add the last run
+        result.append((count, bytes([current_byte])))
 
-        return runs
+        return result
 
     @staticmethod
     def decompress(runs: list[tuple[int, bytes]]) -> bytes:
         """
-        Decompresses a list of (count, byte) tuples.
-        Returns the reconstructed bytes.
+        Decompress RLE data.
+
+        Args:
+            runs: List of (count, value) tuples
+
+        Returns:
+            Decompressed data as bytes
         """
         result = bytearray()
-
-        for count, byte in runs:
-            result.extend(byte * count)
-
+        for count, byte_val in runs:
+            result.extend(byte_val * count)
         return bytes(result)
 
     @staticmethod
