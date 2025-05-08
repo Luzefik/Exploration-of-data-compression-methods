@@ -25,7 +25,7 @@ from algorithms.LZ77 import LZ77
 from algorithms.LZ78 import LZ78Compressor
 from algorithms.LZW import LZWCompressor
 from algorithms.image_utils.RLE import RLECompressor
-
+from algorithms.wav_compression_deflate import WAVCompressor
 
 class MainWindow(QMainWindow):
     """
@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
             font-size: 35px;
             color: #0E103D;
             font-weight: 700;
-        """
+            """
         )
         self.layout.addWidget(self.name)
 
@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
 
         self.algorithms_box = QComboBox()
         self.algorithms_box.addItems(
-            ["Huffman", "LZW", "Deflate", "LZ77", "LZ78", "RLE"]
+            ["Huffman", "LZW", "Deflate", "LZ77", "LZ78", "RLE", 'DPCM']
         )
 
         self.algorithms_box.setStyleSheet(
@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
                 background-color: 'white';
                 border-radius: 10px;
             }
-        """
+            """
         )
 
         self.algorithms_box.setFixedSize(QSize(720, 40))
@@ -246,7 +246,6 @@ class MainWindow(QMainWindow):
                 "acceptable_extensions": [
                     ".jpg",
                     ".tiff",
-                    ".png",
                     ".wav",
                     ".txt",
                     ".csv",
@@ -289,7 +288,6 @@ class MainWindow(QMainWindow):
                 "acceptable_extensions": [
                     ".jpg",
                     ".tiff",
-                    ".png",
                     ".jpeg",
                     ".bmp",
                     ".bin",
@@ -300,7 +298,6 @@ class MainWindow(QMainWindow):
                 "acceptable_extensions": [
                     ".jpg",
                     ".tiff",
-                    ".png",
                     ".wav",
                     ".txt",
                     ".csv",
@@ -310,13 +307,25 @@ class MainWindow(QMainWindow):
                     ".bin",
                 ],
                 "Deflate": Deflate()
+            },
+            "DPCM":{
+                "acceptable_extensions": [
+                    ".wav"
+                ],
+                "DPCM": WAVCompressor()
             }
         }
-
+        file_ext = os.path.splitext(self.selected_file)[1].lower()
         algorithm = self.algorithms_box.currentText()
         if algorithm in algorithms_to_call:
-            file_to_encode = algorithms_to_call[algorithm].get(algorithm)
-            file_to_encode.compress_file(self.selected_file)
+            if file_ext in algorithms_to_call[algorithm]['acceptable_extensions']:
+                file_to_encode = algorithms_to_call[algorithm].get(algorithm)
+                file_to_encode.compress_file(self.selected_file)
+            else:
+                QMessageBox.warning(self, "Error", \
+                f"This extension is not supported by this algorithm. Choose one of those:{', '.join(ext \
+                for ext in algorithms_to_call[algorithm]['acceptable_extensions'])}")
+                return
 
         self.compression_done = True
         self.compress_file_size = os.stat(f"compressed_{algorithm.lower()}.bin").st_size
@@ -345,6 +354,7 @@ class MainWindow(QMainWindow):
             "LZ77": LZ77(),
             "RLE": RLECompressor(),
             "Deflate": Deflate(),
+            "DPCM": WAVCompressor()
         }
         algorithm = self.algorithms_box.currentText()
 

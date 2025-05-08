@@ -9,17 +9,16 @@ import json
 import os
 import wave
 
-from audio_transforms import AudioTransforms
-
-from huffman_coding import HuffmanTree
+from algorithms.audio_utils.audio_transforms import AudioTransforms
+from algorithms.huffman_coding import HuffmanTree
 
 
 class WAVCompressor:
     """Class for compressing and decompressing WAV files using Huffman coding"""
 
     @staticmethod
-    def compress_wav(
-        input_file: str, output_file: str = "compressed_wav_huffman.bin"
+    def compress_file(
+        input_file: str, output_file: str = "compressed_dpcm.bin"
     ) -> None:
         """
         Compress a WAV file using Huffman coding with delta coding.
@@ -122,9 +121,9 @@ class WAVCompressor:
             raise Exception(f"Error during compression: {e}")
 
     @staticmethod
-    def decompress_wav(
-        input_file: str = "compressed_wav_huffman.bin",
-        output_file: str = "decompressed_huffman.wav",
+    def decompress_file(
+        input_file: str = "compressed_dpcm.bin",
+        output_file: str = "decompressed_dpcm.wav",
     ) -> None:
         """
         Decompress a Huffman-compressed WAV file.
