@@ -179,24 +179,25 @@ cython_debug/
 .pypirc
 
 .vscode
-# *.pdf
-# *.bin
-# *.txt
-# *.lz77
-# *.json
-# *.csv
-# *.log
-# *.pickle
-# *.pkl
-# *.h5
-# *.hdf5
-# *.hdf
-# *.deflate
-# *.zip
-# *.tar
-# *.tar.gz
-# *.tar.bz2
-# *.png
-# *.jpg
-# *.jpeg
-# *.gif
+*.pdf
+*.lz78
+*.bin
+*.txt
+*.lz77
+*.json
+*.csv
+*.log
+*.pickle
+*.pkl
+*.h5
+*.hdf5
+*.hdf
+*.deflate
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.png
+*.jpg
+*.jpeg
+*.gif

@@ -79,7 +79,7 @@ class WAVCompressor:
             huffman.compress_file(
                 input_f=temp_file,
                 output_f=compressed_file,
-                output_dict_f="compressed_wav_huffman_dict.json",
+                output_dict_f="compressed_dpcm.json",
             )
 
             # Clean up temporary delta file
@@ -100,7 +100,7 @@ class WAVCompressor:
 
             # Get the final compressed size
             compressed_size = os.path.getsize(output_file)
-            dict_size = os.path.getsize("compressed_wav_huffman_dict.json")
+            dict_size = os.path.getsize("compressed_dpcm.json")
             total_compressed_size = compressed_size + dict_size
 
             # Check if compression is effective
@@ -110,9 +110,9 @@ class WAVCompressor:
                         os.remove(output_file)
                     except OSError:
                         pass
-                if os.path.exists("compressed_wav_huffman_dict.json"):
+                if os.path.exists("compressed_dpcm.json"):
                     try:
-                        os.remove("compressed_wav_huffman_dict.json")
+                        os.remove("compressed_dpcm.json")
                     except OSError:
                         pass
                 return
@@ -149,7 +149,7 @@ class WAVCompressor:
 
             # Decompress using Huffman coding
             HuffmanTree.decompress_file(
-                input_f=compressed_file, input_dict_f="compressed_wav_huffman_dict.json"
+                input_f=compressed_file, input_dict_f="compressed_dpcm.json"
             )
 
             # Clean up temporary compressed file
