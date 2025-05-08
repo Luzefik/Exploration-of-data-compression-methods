@@ -44,7 +44,7 @@ Exploration-of-data-compression-methods/
 ### Склад команди та розподіл обов'язків
 - [Андрій Кульбаба](https://github.com/Luzefik) - реалізація LZ77, DEFLATE, DPCM
 - [Оксана Москв'як](https://github.com/okqsna) - реалізація Huffman Coding, програми-кодека(UI), README.
-- [Олександр Стаднік](https://github.com/Stalex575) - реалізація LZ78
-- [Олег Гуцуляк](https://github.com/intersect1on) - реалізація LZW, RLE
+- [Олександр Стаднік](https://github.com/Stalex575) - реалізація LZW
+- [Олег Гуцуляк](https://github.com/intersect1on) - реалізація LZ78, RLE
 
 <i>@Створено студентами УКУ в межах курсу "Дискретна математика 2"</i>
