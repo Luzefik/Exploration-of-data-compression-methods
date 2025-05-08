@@ -1,6 +1,5 @@
 """LZ78 Compression and Decompression"""
 
-
 class LZ78Compressor:
     """A class for LZ78 compression and decompression"""
 
@@ -58,10 +57,13 @@ class LZ78Compressor:
         with open(input_path, "rb") as f:
             data = f.read()
 
-        pairs = LZ78Compressor.compress(data)
+        ext = input_path.split(".")[-1] if "." in input_path else ""
 
         with open(output_path, "wb") as f:
-            for idx, byte in pairs:
+            f.write(len(ext).to_bytes(1, "big"))
+            f.write(ext.encode())
+
+            for idx, byte in LZ78Compressor.compress(data):
                 f.write(idx.to_bytes(4, "big"))
                 length = len(byte)
                 f.write(length.to_bytes(1, "big"))
@@ -69,17 +71,21 @@ class LZ78Compressor:
 
     @staticmethod
     def decompress_file(
-        input_path: str = "compressed_lz78.bin", output_path: str = "decompressed_lz78"
+        input_path: str = "compressed_lz78.bin", output_path: str = None
     ):
         """
         Reads a binary LZ78 stream, decompresses to bytes, and writes to file.
         """
-        pairs = []
-
         with open(input_path, "rb") as f:
             blob = f.read()
 
         pos = 0
+        ext_len = blob[pos]
+        pos += 1
+        ext = blob[pos:pos+ext_len].decode()
+        pos += ext_len
+
+        pairs = []
         n = len(blob)
 
         while pos < n:
@@ -92,6 +98,9 @@ class LZ78Compressor:
             pairs.append((idx, byte))
 
         data = LZ78Compressor.decompress(pairs)
+
+        if output_path is None:
+            output_path = f"decompressed_lz78.{ext}"
 
         with open(output_path, "wb") as f:
             f.write(data)

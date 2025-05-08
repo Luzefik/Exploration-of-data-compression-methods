@@ -1,7 +1,4 @@
-"""
-Run-Length Encoding (RLE) Compression Module
-"""
-
+"""Run-Length Encoding (RLE) Compression Module"""
 
 class RLECompressor:
     """Class for RLE compression and decompression"""
@@ -32,9 +29,7 @@ class RLECompressor:
                 current_byte = byte
                 count = 1
 
-        # Add the last run
         result.append((count, bytes([current_byte])))
-
         return result
 
     @staticmethod
@@ -60,15 +55,20 @@ class RLECompressor:
         """
         with open(input_path, "rb") as f:
             data = f.read()
-        runs = RLECompressor.compress(data)
+
+        ext = input_path.split(".")[-1] if "." in input_path else ""
+
         with open(output_path, "wb") as f:
-            for count, byte in runs:
+            f.write(len(ext).to_bytes(1, "big"))
+            f.write(ext.encode())
+
+            for count, byte in RLECompressor.compress(data):
                 f.write(count.to_bytes(4, "big"))
                 f.write(byte)
 
     @staticmethod
     def decompress_file(
-        input_path: str = "compressed_rle.bin", output_path: str = "decompressed_rle"
+        input_path: str = "compressed_rle.bin", output_path: str = None
     ):
         """
         Reads a binary RLE stream, decompresses to bytes, and writes to file.
@@ -79,6 +79,12 @@ class RLECompressor:
             blob = f.read()
 
         pos = 0
+        ext_len = blob[pos]
+        pos += 1
+        ext = blob[pos:pos+ext_len].decode()
+        pos += ext_len
+
+        runs = []
         n = len(blob)
 
         while pos < n:
@@ -89,6 +95,9 @@ class RLECompressor:
             runs.append((count, byte))
 
         data = RLECompressor.decompress(runs)
+
+        if output_path is None:
+            output_path = f"decompressed_rle.{ext}"
 
         with open(output_path, "wb") as f:
             f.write(data)
