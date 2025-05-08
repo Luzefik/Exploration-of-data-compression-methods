@@ -24,7 +24,7 @@ from algorithms.huffman_coding import HuffmanTree
 from algorithms.LZ77 import LZ77
 from algorithms.LZ78 import LZ78Compressor
 from algorithms.LZW import LZWCompressor
-from algorithms.RLE import RLECompressor
+from algorithms.image_utils.RLE import RLECompressor
 
 
 class MainWindow(QMainWindow):
@@ -214,23 +214,15 @@ class MainWindow(QMainWindow):
 
             acceptable_extensions = [
                 ".jpg",
-                ".tif",
+                ".tiff",
                 ".png",
-                ".gif",
-                ".flac",
-                ".mp3",
-                ".flac",
                 ".wav",
-                ".mpeg",
                 ".txt",
                 ".csv",
                 ".json",
                 ".jpeg",
                 ".bmp",
-                ".avi",
-                ".mp4",
                 ".bin",
-                ".gif",
             ]
             if file_ext not in acceptable_extensions:
                 QMessageBox.warning(
@@ -250,17 +242,80 @@ class MainWindow(QMainWindow):
             return
 
         algorithms_to_call = {
-            "Huffman": HuffmanTree(),
-            "LZW": LZWCompressor(),
-            "LZ78": LZ78Compressor(),
-            "LZ77": LZ77(),
-            "RLE": RLECompressor(),
-            "Deflate": Deflate(),
+            "Huffman":{
+                "acceptable_extensions": [
+                    ".jpg",
+                    ".tiff",
+                    ".png",
+                    ".wav",
+                    ".txt",
+                    ".csv",
+                    ".json",
+                    ".jpeg",
+                     ".bmp",
+                    ".bin",
+                ],
+                "Huffman": HuffmanTree()
+            },
+            "LZW": {
+                "acceptable_extensions":[
+                    ".txt",
+                    ".csv",
+                    ".json",
+                    ".bin"
+                ],
+                "LZW": LZWCompressor()
+            },
+            "LZ78":{
+                "acceptable_extensions":[
+                    ".txt",
+                    ".csv",
+                    ".json",
+                    ".bin"
+                ],
+                "LZ78": LZ78Compressor(),
+            },
+            "LZ77":{
+                "acceptable_extensions":[
+                    ".txt",
+                    ".tiff",
+                    ".csv",
+                    ".json",
+                    ".bin"
+                ],
+                "LZ77": LZ78Compressor(),
+            },
+            "RLE":{
+                "acceptable_extensions": [
+                    ".jpg",
+                    ".tiff",
+                    ".png",
+                    ".jpeg",
+                    ".bmp",
+                    ".bin",
+                ],
+                "RLE": RLECompressor()
+            },
+            "Deflate":{
+                "acceptable_extensions": [
+                    ".jpg",
+                    ".tiff",
+                    ".png",
+                    ".wav",
+                    ".txt",
+                    ".csv",
+                    ".json",
+                    ".jpeg",
+                    ".bmp",
+                    ".bin",
+                ],
+                "Deflate": Deflate()
+            }
         }
 
         algorithm = self.algorithms_box.currentText()
         if algorithm in algorithms_to_call:
-            file_to_encode = algorithms_to_call.get(algorithm)
+            file_to_encode = algorithms_to_call[algorithm].get(algorithm)
             file_to_encode.compress_file(self.selected_file)
 
         self.compression_done = True
